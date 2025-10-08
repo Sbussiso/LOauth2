@@ -11,7 +11,7 @@ from flask import Flask, session, redirect, request, url_for, jsonify, Response
 # Minimal OAuth2 client app that uses the local authorization server (server.py)
 # Runs on http://localhost:3000 and performs the Authorization Code + PKCE flow.
 
-AUTH_SERVER = os.environ.get("AUTH_SERVER_URL", "http://127.0.0.1:5000")
+AUTH_SERVER = os.environ.get("AUTH_SERVER_URL", "http://127.0.0.1:8000")
 CLIENT_ID = os.environ.get("CLIENT_ID", "demo-web")
 REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost:3000/callback")
 # Request offline_access so the server returns a refresh_token on auth_code exchange

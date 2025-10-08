@@ -17,10 +17,10 @@ Stack:
 Run:
   python3 -m venv .venv && source .venv/bin/activate
   pip install flask authlib sqlalchemy
-  python server.py  # starts on http://127.0.0.1:5000
+  python server.py  # starts on http://127.0.0.1:8000
 
 Test OAuth Flow (PKCE):
-  1) Create a client: GET http://127.0.0.1:5000/dev/seed (or POST /dev/create_client)
+  1) Create a client: GET http://127.0.0.1:8000/dev/seed (or POST /dev/create_client)
   2) Generate PKCE verifier & challenge (script printed at startup).
   3) Hit /authorize in a browser; login user: alice / password: alice
   4) Approve consent; code returns to redirect_uri; POST to /token with code+verifier
@@ -472,12 +472,12 @@ def _load_active_signing_key():
 KID, SIGNING_JWK = _load_active_signing_key()
 
 def _issuer() -> str:
-    # Compute issuer based on current host, e.g., http://127.0.0.1:5000
+    # Compute issuer based on current host, e.g., http://127.0.0.1:8000
     try:
-        return (request.host_url or "http://127.0.0.1:5000/").rstrip('/')
+        return (request.host_url or "http://127.0.0.1:8000/").rstrip('/')
     except RuntimeError:
         # outside request context
-        return "http://127.0.0.1:5000"
+        return "http://127.0.0.1:8000"
 
 def _b64url_no_pad(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).decode().rstrip('=')
@@ -797,7 +797,7 @@ def _admin_layout(body: str) -> str:
  .row{{display:flex;gap:12px;align-items:center}}
 </style>
 <div class='wrap'>
-  <div class='nav'><div><b>OAuth2 Admin</b></div><div><a class='btn' href='/admin/ui'>Dashboard</a> <a class='btn' href='https://github.com/Sbussiso/LOauth2' target='_blank' rel='noopener'>Docs</a> <a class='btn' href='/admin/logout'>Logout</a></div></div>
+  <div class='nav'><div><b>OAuth2 Admin</b></div><div><a class='btn' href='/admin/ui'>Dashboard</a> <a class='btn' href='https://github.com/Sbussiso/LOauth2#admin-ui-reference' target='_blank' rel='noopener'>Docs</a> <a class='btn' href='/admin/logout'>Logout</a></div></div>
   <div class='card'>
     {body}
   </div>
@@ -1811,5 +1811,26 @@ if __name__ == '__main__':
     # Ensure some seed exists on first run
     with app.test_request_context():
         pass
-    print("\nQuick test steps:\n  1) Open http://127.0.0.1:5000/dev/seed to create demo users/client\n  2) GET http://127.0.0.1:5000/dev/pkce to obtain verifier+challenge\n  3) Open /authorize URL in a browser, for example:\n     http://127.0.0.1:5000/authorize?client_id=demo-web&response_type=code&scope=openid%20profile%20email&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&code_challenge_method=S256&code_challenge=<CHALLENGE>\n  4) Login as alice/alice, approve consent, copy the ?code=...\n  5) Exchange code with curl:\n     curl -X POST http://127.0.0.1:5000/token \\\n          -H 'Content-Type: application/x-www-form-urlencoded' \\\n          -d 'grant_type=authorization_code' \\\n          -d 'client_id=demo-web' \\\n          -d 'code_verifier=<VERIFIER>' \\\n          -d 'code=<CODE_FROM_CALLBACK>' \\\n          -d 'redirect_uri=http://localhost:3000/callback'\n  6) Call a protected API:\n     curl http://127.0.0.1:5000/userinfo -H 'Authorization: Bearer <access_token>'\n")
-    app.run(debug=True)
+
+    host = '127.0.0.1'
+    port = 8000
+    base = f"http://{host}:{port}"
+    print(f"""
+Quick test steps:
+  1) Open {base}/dev/seed to create demo users/client
+  2) GET {base}/dev/pkce to obtain verifier+challenge
+  3) Open /authorize URL in a browser, for example:
+     {base}/authorize?client_id=demo-web&response_type=code&scope=openid%20profile%20email&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&code_challenge_method=S256&code_challenge=<CHALLENGE>
+  4) Login as alice/alice, approve consent, copy the ?code=...
+  5) Exchange code with curl:
+     curl -X POST {base}/token \
+          -H 'Content-Type: application/x-www-form-urlencoded' \
+          -d 'grant_type=authorization_code' \
+          -d 'client_id=demo-web' \
+          -d 'code_verifier=<VERIFIER>' \
+          -d 'code=<CODE_FROM_CALLBACK>' \
+          -d 'redirect_uri=http://localhost:3000/callback'
+  6) Call a protected API:
+     curl {base}/userinfo -H 'Authorization: Bearer <access_token>'
+""")
+    app.run(debug=True, host=host, port=port)

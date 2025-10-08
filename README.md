@@ -60,10 +60,53 @@ Environment variables:
 
 ```bash
 uv run server.py
-# App starts at http://127.0.0.1:5000
+# App starts at http://127.0.0.1:8000 (fixed)
 ```
 
 On first run, you will be redirected to `GET /setup` to initialize the server and set an Admin Token (shown once, then hashed in DB). Use this token to access the Admin UI and Admin APIs.
+
+### Quickstart (60 seconds)
+
+1. Set dev env and start (enables helpers):
+   ```bash
+   export ENABLE_DEV_ENDPOINTS=true
+   uv run server.py
+   export BASE=http://127.0.0.1:8000
+   ```
+
+2. Complete setup in the browser at `$BASE/setup` and copy the Admin Token.
+
+3. Seed demo data:
+   ```bash
+   curl "$BASE/dev/seed" -H "X-Admin-Token: <ADMIN_TOKEN>"
+   ```
+
+4. Generate PKCE (or generate in your app):
+   ```bash
+   curl "$BASE/dev/pkce" -H "X-Admin-Token: <ADMIN_TOKEN>"
+   # copy code_verifier and code_challenge
+   ```
+
+5. Authorize in a browser (replace CHALLENGE):
+   ```
+   $BASE/authorize?client_id=demo-web&response_type=code&scope=openid%20profile%20email%20offline_access&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&code_challenge_method=S256&code_challenge=<CHALLENGE>
+   ```
+
+6. Exchange code for tokens:
+   ```bash
+   curl -X POST "$BASE/token" \
+        -H 'Content-Type: application/x-www-form-urlencoded' \
+        -d 'grant_type=authorization_code' \
+        -d 'client_id=demo-web' \
+        -d 'code_verifier=<VERIFIER>' \
+        -d 'code=<CODE_FROM_CALLBACK>' \
+        -d 'redirect_uri=http://localhost:3000/callback'
+   ```
+
+7. Call userinfo:
+   ```bash
+   curl "$BASE/userinfo" -H 'Authorization: Bearer <access_token>'
+   ```
 
 ## Seed Demo Data (dev only)
 
@@ -77,7 +120,7 @@ uv run server.py
 Then, with your Admin Token from setup:
 
 ```bash
-curl http://127.0.0.1:5000/dev/seed \
+curl "$BASE/dev/seed" \
   -H "X-Admin-Token: <YOUR_SETUP_TOKEN>"
 ```
 
@@ -88,7 +131,7 @@ Seeds demo users (`alice/alice`, `bob/bob`) and a public client `demo-web` suita
 When `ENABLE_DEV_ENDPOINTS=true`:
 
 ```bash
-curl http://127.0.0.1:5000/dev/pkce \
+curl "$BASE/dev/pkce" \
   -H "X-Admin-Token: <YOUR_SETUP_TOKEN>"
 ```
 
@@ -107,7 +150,7 @@ Returns JSON with `code_verifier` and `code_challenge` for S256 usage:
 ## OAuth 2.0/OIDC Authorization Code Flow (Step-by-Step)
 
 1. **Create a client**
-   - Open Admin UI: `http://127.0.0.1:5000/admin/login` (use Admin Token).
+   - Open Admin UI: `$BASE/admin/login` (use Admin Token).
    - Create a client with:
      - Redirect URI: your app’s callback (e.g., `http://localhost:3000/callback`)
      - Grant types: `authorization_code refresh_token`
@@ -121,7 +164,7 @@ Returns JSON with `code_verifier` and `code_challenge` for S256 usage:
 3. **Authorize request**
    - Open in the browser (replace `<CHALLENGE>` if using PKCE):
      ```
-     http://127.0.0.1:5000/authorize?
+     $BASE/authorize?
        client_id=demo-web&
        response_type=code&
        scope=openid%20profile%20email%20offline_access&
@@ -136,7 +179,7 @@ Returns JSON with `code_verifier` and `code_challenge` for S256 usage:
 4. **Exchange code for tokens**
    - Example with curl (replace placeholders):
      ```bash
-     curl -X POST http://127.0.0.1:5000/token \
+     curl -X POST "$BASE/token" \
           -H 'Content-Type: application/x-www-form-urlencoded' \
           -d 'grant_type=authorization_code' \
           -d 'client_id=demo-web' \
@@ -150,14 +193,14 @@ Returns JSON with `code_verifier` and `code_challenge` for S256 usage:
    - Requires `Authorization: Bearer <access_token>` and appropriate scope.
    - Example:
      ```bash
-     curl http://127.0.0.1:5000/userinfo \
+     curl "$BASE/userinfo" \
           -H 'Authorization: Bearer <access_token>'
      ```
 
 6. **Refresh the access token**
    - Example with curl:
      ```bash
-     curl -X POST http://127.0.0.1:5000/token \
+     curl -X POST "$BASE/token" \
           -H 'Content-Type: application/x-www-form-urlencoded' \
           -d 'grant_type=refresh_token' \
           -d 'client_id=demo-web' \
@@ -192,30 +235,229 @@ Returns JSON with `code_verifier` and `code_challenge` for S256 usage:
 - Strict redirect URI matching is enforced by `OAuth2Client.check_redirect_uri()`.
 - Configure per-client policy (allowed/default scopes, PKCE, consent policy, token lifetimes, token format) via Admin UI or API.
 
-## Troubleshooting
+---
 
-- **[Admin login fails]** Ensure you use the token shown on the setup success screen. Whitespace matters (we trim both sides, but double-check copy/paste). If you lost it, reset by updating the `server_settings.admin_token_hash` in DB or reinitializing the database.
-- **[401 Admin API]** Send `X-Admin-Token: <token>` header. After setup, env `ADMIN_TOKEN` is ignored.
-- **[Dev endpoints 404]** Set `ENABLE_DEV_ENDPOINTS=true` and include `X-Admin-Token`.
-- **[400 invalid redirect_uri]** The `redirect_uri` must exactly match one of the client’s registered URIs.
-- **[400 PKCE required]** Client policy may require PKCE (S256). Include `code_challenge_method=S256` and `code_challenge` on `/authorize`, and `code_verifier` on `/token`.
-- **[No id_token]** Include the `openid` scope.
-- **[Logout doesn’t return]** Add your app URL to client policy `post_logout_redirect_uris`.
-- **[Consent remembered]** With policy `once`, consent is remembered per user+client+scope. Use `always` to force consent each time.
-- **[SQLite locking]** SQLite is fine for dev. Use Postgres/MySQL and a production WSGI server for prod.
-- **[Token validation]** If you switch to JWT access tokens, verify `iss`/`aud` via JWKS and configured issuer.
+## Token Revocation
 
-## Production Notes
+Endpoint: `POST /revoke`
 
-- **HTTPS + reverse proxy**: Terminate TLS at a proxy (nginx, ALB) and forward to a WSGI app server (gunicorn/uWSGI).
-- **Real DB**: Use Postgres/MySQL. Configure `DATABASE_URL` and run with proper connection pooling.
-- **Secrets**: Set strong `APP_SECRET`. Store secrets in a secret manager.
-- **Issuer**: Ensure consistent public base URL (e.g., behind a proxy) so discovery `issuer` is stable.
-- **Clients and scopes**: Manage via Admin UI/API; avoid wildcards in `redirect_uris`.
-- **Security**: Replace demo login, add CSRF protection for admin forms, enable rate limiting.
-- **Key management**: Rotate signing keys periodically via Admin UI; back up the database (contains keys and settings).
+Form params:
+- `token`: the token string (access or refresh)
+- `token_type_hint`: `access_token` or `refresh_token` (optional)
+
+Client authentication options:
+- `client_secret_basic` (recommended for confidential clients):
+  ```bash
+  curl -X POST "$BASE/revoke" \
+       -u 'CLIENT_ID:CLIENT_SECRET' \
+       -d 'token=<ACCESS_OR_REFRESH_TOKEN>' \
+       -d 'token_type_hint=access_token'
+  ```
+- `client_secret_post`:
+  ```bash
+  curl -X POST "$BASE/revoke" \
+       -d 'client_id=CLIENT_ID' \
+       -d 'client_secret=CLIENT_SECRET' \
+       -d 'token=<ACCESS_OR_REFRESH_TOKEN>' \
+       -d 'token_type_hint=refresh_token'
+  ```
+- Public clients (no secret) are allowed by this demo for convenience:
+  ```bash
+  curl -X POST "$BASE/revoke" \
+       -d 'client_id=PUBLIC_CLIENT_ID' \
+       -d 'token=<ACCESS_OR_REFRESH_TOKEN>'
+  ```
+
+Per RFC7009, the endpoint returns 200 even if the token is unknown.
+
+## Token Introspection
+
+Endpoint: `POST /introspect`
+
+Form params:
+- `token`: the token string (access or refresh)
+- `token_type_hint`: `access_token` or `refresh_token` (optional)
+
+Examples:
+- `client_secret_basic`:
+  ```bash
+  curl -X POST "$BASE/introspect" \
+       -u 'CLIENT_ID:CLIENT_SECRET' \
+       -d 'token=<ACCESS_OR_REFRESH_TOKEN>'
+  ```
+- `client_secret_post`:
+  ```bash
+  curl -X POST "$BASE/introspect" \
+       -d 'client_id=CLIENT_ID' \
+       -d 'client_secret=CLIENT_SECRET' \
+       -d 'token=<ACCESS_OR_REFRESH_TOKEN>'
+  ```
+- Public client:
+  ```bash
+  curl -X POST "$BASE/introspect" \
+       -d 'client_id=PUBLIC_CLIENT_ID' \
+       -d 'token=<ACCESS_OR_REFRESH_TOKEN>'
+  ```
+
+Response example:
+```json
+{
+  "active": true,
+  "client_id": "demo-web",
+  "token_type": "Bearer",
+  "scope": "openid profile email",
+  "exp": 1735689600,
+  "iat": 1735686000,
+  "sub": "1",
+  "username": "alice"
+}
+```
 
 ---
+
+## Logout Flow
+
+Two options are provided:
+
+- RP-initiated logout: `GET /logout`
+  - Params: `client_id` or `id_token_hint`, optional `post_logout_redirect_uri`, `state`
+  - The server revokes this user’s tokens for the given client (best-effort demo) and clears the session, then redirects if allowed by the client policy.
+  - Example:
+    ```bash
+    curl "$BASE/logout?client_id=demo-web&post_logout_redirect_uri=http://localhost:3000/&state=bye"
+    ```
+
+- OIDC end session: `GET /end_session`
+  - Params: `post_logout_redirect_uri`, optional `state`
+  - Clears the session and optionally redirects.
+  - Example:
+    ```bash
+    curl "$BASE/end_session?post_logout_redirect_uri=http://localhost:3000/&state=bye"
+    ```
+
+---
+
+## Admin APIs
+
+All Admin APIs require `X-Admin-Token` header (use the token created at `/setup`).
+
+- Rotate signing key:
+  ```bash
+  curl -X POST "$BASE/admin/rotate_jwk" -H "X-Admin-Token: <ADMIN_TOKEN>"
+  ```
+
+- List or upsert scopes:
+  ```bash
+  curl "$BASE/admin/scopes" -H "X-Admin-Token: <ADMIN_TOKEN>"
+  curl -X POST "$BASE/admin/scopes" -H "X-Admin-Token: <ADMIN_TOKEN>" \
+       -H 'Content-Type: application/json' \
+       -d '{"name":"files.read","description":"Read your files","claims":["files"]}'
+  ```
+
+- Delete a scope:
+  ```bash
+  curl -X DELETE "$BASE/admin/scopes/files.read" -H "X-Admin-Token: <ADMIN_TOKEN>"
+  ```
+
+- Get/update client policy:
+  ```bash
+  curl "$BASE/admin/clients/demo-web/policy" -H "X-Admin-Token: <ADMIN_TOKEN>"
+  curl -X POST "$BASE/admin/clients/demo-web/policy" -H "X-Admin-Token: <ADMIN_TOKEN>" \
+       -H 'Content-Type: application/json' \
+       -d '{
+             "allowed_scopes":"openid profile email offline_access",
+             "default_scopes":"openid profile email",
+             "post_logout_redirect_uris":"http://localhost:3000/",
+             "require_pkce": true,
+             "consent_policy":"once",
+             "access_token_lifetime":3600,
+             "refresh_token_ttl_days":30,
+             "token_format":"opaque"
+           }'
+  ```
+
+---
+
+## Issuer and Discovery
+
+- Discovery document: `GET /.well-known/openid-configuration`
+  - Contains `issuer`, endpoint URLs, `jwks_uri`, supported scopes and methods.
+  - Example:
+    ```bash
+    curl "$BASE/.well-known/openid-configuration"
+    ```
+- JWKS: `GET /.well-known/jwks.json`
+  - Use to validate `id_token` (RS256) and JWT access tokens if enabled.
+
+---
+
+## Token Formats
+
+- `id_token` (RS256) is returned when `openid` scope is requested.
+- Access tokens are `opaque` by default; can be switched to `jwt` per client policy.
+- Opaque tokens require introspection for validation; JWTs are self-contained and validated with JWKS.
+
+---
+
+## Troubleshooting (expanded)
+
+- **[invalid_client at /token]** Ensure the client uses the correct auth method (`none`, `client_secret_post`, or `client_secret_basic`) matching its configuration.
+- **[invalid_grant]** Code reused/expired or the `redirect_uri` at the token request doesn’t match the original authorize request.
+- **[invalid_scope]** Requested scopes not in the client’s allowed set (policy). Adjust policy or request.
+- **[insufficient_scope]** Accessing a protected API without the required scope.
+- **[PKCE mismatch]** `code_verifier` must match the `code_challenge` sent to `/authorize`.
+- **[Issuer mismatch]** Clients validating `id_token` must use the `issuer` from discovery.
+
+---
+
+## Production Deployment
+
+- Example (gunicorn):
+  ```bash
+  pip install gunicorn
+  gunicorn -w 4 -b 0.0.0.0:8000 server:app
+  ```
+- Place behind TLS-terminating proxy (nginx/ALB). Ensure consistent external URL so `issuer` is stable.
+- Use Postgres/MySQL with pooling (set `DATABASE_URL`).
+- Back up DB regularly (contains keys, settings).
+
+---
+
+## Security Checklist
+
+- Replace demo login with your auth; add CSRF protection to admin forms.
+- Use strong `APP_SECRET`; store secrets securely.
+- Enforce strict `redirect_uris`; avoid wildcards.
+- Enable rate limiting and monitoring.
+- Rotate signing keys periodically.
+
+---
+
+## Client Types
+
+- **Public (SPA/native)**: `token_endpoint_auth_method=none`, PKCE required, no client secret.
+- **Confidential (server-side)**: `client_secret_post` or `client_secret_basic`, secret stored server-side.
+
+---
+
+## Examples
+
+- `todo_demo.py`: simple SPA-style OAuth code flow with PKCE.
+- `camera_demo.py`: similar flow with file access scopes.
+
+---
+
+## FAQ
+
+- **Where is the Admin Token?** Created at `/setup` on first run; shown once and stored hashed. Use it for Admin UI and `X-Admin-Token`.
+- **Dev helpers not working?** Set `ENABLE_DEV_ENDPOINTS=true` and include `X-Admin-Token`.
+- **How do I change ports?** The server binds to 127.0.0.1:8000. To change, edit `server.py` (startup block) or run behind a reverse proxy/app server (e.g., gunicorn/nginx) on your desired port.
+- **Why no ID token?** Include `openid` in the requested scope.
+- **How to reset Admin Token?** Update `server_settings.admin_token_hash` in DB (or reinit DB for dev).
+
+
+---
+-
 
 ## Admin UI Reference
 
@@ -224,7 +466,7 @@ Use this section as an in-app guide from the Admin UI. The info icons on forms l
 ### Overview
 
 - **Dashboard**: `/admin/ui` shows quick links to Scopes, Clients, and Signing Keys.
-- **Docs**: `/admin/ui/docs` renders this README for inline help.
+- **Docs**: GitHub docs: https://github.com/Sbussiso/LOauth2#admin-ui-reference
 
 ### Clients
 

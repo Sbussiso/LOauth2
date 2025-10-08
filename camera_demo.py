@@ -24,7 +24,7 @@ FRAME_WIDTH = int(os.environ.get("FRAME_WIDTH", "640"))
 FRAME_HEIGHT = int(os.environ.get("FRAME_HEIGHT", "480"))
 
 # OAuth client config
-AUTH_SERVER = os.environ.get("AUTH_SERVER_URL", "http://127.0.0.1:5000")
+AUTH_SERVER = os.environ.get("AUTH_SERVER_URL", "http://127.0.0.1:8000")
 CLIENT_ID = os.environ.get("CLIENT_ID", "demo-web")
 REDIRECT_URI = os.environ.get("CAMERA_REDIRECT_URI", "http://localhost:3001/callback")
 SCOPE = os.environ.get("SCOPE", "openid profile email offline_access")
