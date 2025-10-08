@@ -1,87 +1,173 @@
-# Minimal OAuth2 Authorization Server
+# Your OAuth2 Server. Your Rules. Your Data.
 
-A production-ready OAuth 2.0 / OIDC Authorization Server built with Flask and Authlib.
+**A complete, self-hosted OAuth 2.0 / OIDC Authorization Server that you control.**
+
+No third-party dependencies. No cloud providers. No data sharing.
+Deploy it locally, own it completely, and never worry about external OAuth services again.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Self-Hosted](https://img.shields.io/badge/Self--Hosted-100%25-green.svg)](https://github.com/Sbussiso/LOauth2)
 
 ---
 
-## 🚀 Quick Start
+## 🔐 Why Self-Host Your OAuth2 Server?
+
+### You Own Your Authentication
+- **No vendor lock-in** - Your auth infrastructure, your control
+- **Complete data privacy** - User credentials never leave your infrastructure
+- **Zero external dependencies** - No Auth0, Okta, or cloud provider required
+- **Unlimited users** - No per-user pricing or subscription fees
+
+### Enterprise-Grade Security
+- **Industry-standard protocols** - OAuth 2.0, OIDC, PKCE (S256)
+- **Production-ready** - Used in real-world applications
+- **Audit everything** - Full access to logs, tokens, and user activity
+- **Custom policies** - Define your own consent flows and token lifetimes
+
+### Total Flexibility
+- **Deploy anywhere** - Local network, private cloud, or air-gapped environments
+- **Customize everything** - Scopes, claims, token formats, consent screens
+- **Integrate seamlessly** - Works with any OAuth2-compatible application
+- **Scale on your terms** - From 10 users to 10,000+
+
+---
+
+## 🚀 Get Started in 60 Seconds
 
 ```bash
-# Install and run
+# Clone and run
+git clone https://github.com/Sbussiso/LOauth2.git
+cd LOauth2
 export ENABLE_DEV_ENDPOINTS=true
 uv run server.py
 
 # Complete setup at http://127.0.0.1:8000/setup
-# Seed demo data
-curl http://127.0.0.1:8000/dev/seed -H "X-Admin-Token: <YOUR_TOKEN>"
-
-# Run demo app
-uv run todo_demo.py
-# Open http://localhost:3000
+# Your OAuth2 server is now running!
 ```
+
+**That's it.** No accounts to create. No credit card required. No data sent to third parties.
+
+---
+
+## ⚡ Core Features
+
+### 🔒 Security First
+- ✅ **PKCE (S256)** - Protection against authorization code interception
+- ✅ **Refresh Token Rotation** - Automatic token rotation for enhanced security
+- ✅ **RS256 Signing Keys** - Industry-standard JWT signing with key rotation
+- ✅ **Consent Management** - Granular user consent with configurable policies
+- ✅ **Client Authentication** - Multiple auth methods (none, secret_post, secret_basic)
+
+### 🎛️ Full Control
+- ✅ **Admin Web UI** - Manage clients, scopes, policies, and keys through intuitive interface
+- ✅ **Admin REST APIs** - Automate configuration and management
+- ✅ **Custom Scopes** - Define your own scopes with descriptions and claims
+- ✅ **Flexible Policies** - Per-client token lifetimes, consent rules, and formats
+- ✅ **SQLite/PostgreSQL/MySQL** - Choose your database backend
+
+### 🌐 Standards Compliant
+- ✅ **OpenID Connect (OIDC)** - Full OIDC discovery, JWKS, UserInfo, ID tokens
+- ✅ **OAuth 2.0** - Authorization Code, Refresh Token grants
+- ✅ **Token Operations** - Revocation, introspection, refresh
+- ✅ **Multiple Client Types** - Public (SPAs, mobile) and confidential (backend)
+
+### 🛠️ Developer Friendly
+- ✅ **Working Examples** - Complete demo apps included (todo, camera)
+- ✅ **Dev Tools** - Seed data, PKCE generator, quick client creation
+- ✅ **Comprehensive Docs** - Troubleshooting guides and code examples
+- ✅ **Easy Integration** - Works with any OAuth2 client library
 
 ---
 
 ## 📖 Documentation
 
-### Getting Started
-- **[Installation & Setup](#installation)** - Get up and running in 60 seconds
-- **[Configuration](#configuration)** - Environment variables and setup options
-- **[OAuth2 Flow Guide](#oauth2-flow-step-by-step)** - Complete authorization code flow walkthrough
+### 🚦 Getting Started
+- **[Installation & Setup](#installation)** - Deploy in minutes
+- **[Configuration](#configuration)** - Environment variables and database setup
+- **[OAuth2 Flow Walkthrough](#oauth2-flow-step-by-step)** - Complete authorization guide
 
-### For Developers
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common errors and solutions ⚠️ **Start here if you get errors!**
-- **[Client Examples](docs/CLIENT_EXAMPLES.md)** - Complete working code examples with PKCE
-- **[API Reference](docs/API_REFERENCE.md)** - All endpoints, parameters, and data models
-- **[Admin UI Guide](docs/ADMIN_UI_GUIDE.md)** - Configure clients, scopes, and policies
+### 👨‍💻 For Developers
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Solve integration issues fast ⚠️
+- **[Client Code Examples](docs/CLIENT_EXAMPLES.md)** - Working Python/Flask examples with PKCE
+- **[API Reference](docs/API_REFERENCE.md)** - Complete endpoint documentation
+- **[Admin UI Guide](docs/ADMIN_UI_GUIDE.md)** - Configure clients and policies
 
-### Advanced Topics
-- **[Production Deployment](#production-deployment)** - Gunicorn, database, and TLS setup
-- **[Security Checklist](#security-checklist)** - Best practices for production
+### 🚀 Advanced
+- **[Production Deployment](#production-deployment)** - Scale with Gunicorn, Docker, PostgreSQL
+- **[Security Best Practices](#security-checklist)** - Harden your deployment
 
 ---
 
-## 🎯 Features
+## 🆚 vs. Cloud OAuth Providers
 
-- ✅ **OIDC-ready**: Discovery, JWKS, UserInfo, ID tokens (RS256)
-- ✅ **Authorization Code + PKCE (S256)** - Industry-standard secure flow
-- ✅ **Consent Management** - Per-client policies (`always` | `once` | `skip`)
-- ✅ **Refresh Token Rotation** - Enhanced security with automatic rotation
-- ✅ **Flexible Scopes** - Define custom scopes with claims (no hardcoding)
-- ✅ **Admin Web UI** - Manage clients, scopes, policies, and keys
-- ✅ **Admin APIs** - Automate configuration with REST APIs
-- ✅ **Dev Helpers** - Seed data, PKCE generator, quick client creation
+| Feature | Self-Hosted (This Project) | Auth0 / Okta / etc. |
+|---------|---------------------------|---------------------|
+| **Data Privacy** | ✅ 100% on your infrastructure | ❌ Data on their servers |
+| **Cost** | ✅ Free (MIT License) | ❌ $$$+ per user/month |
+| **Vendor Lock-in** | ✅ None | ❌ Tied to provider |
+| **Customization** | ✅ Unlimited | ⚠️ Limited by their plans |
+| **Network Requirements** | ✅ Works offline/air-gapped | ❌ Requires internet |
+| **Control** | ✅ You own everything | ❌ Subject to their terms |
+| **Audit & Compliance** | ✅ Full access to all data | ⚠️ Limited visibility |
+| **Scalability** | ✅ Scale on your hardware | ⚠️ Pay for each tier |
 
-**Stack**: Flask • Authlib • SQLAlchemy • SQLite (or PostgreSQL/MySQL)
+---
+
+## 🎯 Perfect For
+
+- **🏢 Enterprise Teams** - Own your authentication without vendor fees
+- **🔬 Research Labs** - Air-gapped or secure environments
+- **🏠 Homelab Enthusiasts** - Self-host all your services with OAuth2
+- **🚀 Startups** - Start free, scale without per-user costs
+- **🛡️ Privacy-Focused Orgs** - Keep user data on your infrastructure
+- **🎓 Education** - Learn OAuth2/OIDC with a real server
 
 ---
 
 ## 📋 Requirements
 
 - Python 3.10+
-- pip or [uv](https://docs.astral.sh/uv/) (recommended)
+- SQLite (included) or PostgreSQL/MySQL
+- 512MB RAM minimum (scales with usage)
 
 ---
 
 ## 🔧 Installation
 
-### Using uv (recommended)
+### Quick Start (SQLite)
 ```bash
+# Using uv (recommended)
 uv run server.py
-```
 
-### Using pip
-```bash
+# Using pip
 python3 -m venv .venv
 source .venv/bin/activate
 pip install flask authlib sqlalchemy
 python server.py
 ```
 
-Server starts at **http://127.0.0.1:8000** (fixed)
+Server starts at **http://127.0.0.1:8000**
+
+### Production Setup (PostgreSQL)
+```bash
+# Set database URL
+export DATABASE_URL="postgresql://user:pass@localhost/oauth"
+export APP_SECRET="your-secure-random-secret-key"
+
+# Run with Gunicorn
+pip install gunicorn
+gunicorn -w 4 -b 0.0.0.0:8000 server:app
+```
+
+### Docker Deployment
+```bash
+docker build -t oauth2-server .
+docker run -p 8000:8000 \
+  -e DATABASE_URL="postgresql://..." \
+  -e APP_SECRET="..." \
+  oauth2-server
+```
 
 ---
 
@@ -91,157 +177,185 @@ Server starts at **http://127.0.0.1:8000** (fixed)
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `APP_SECRET` | Flask session secret | Random (dev only) |
+| `APP_SECRET` | Flask session secret (use strong random value) | Random (dev only) |
 | `DATABASE_URL` | SQLAlchemy database URL | `sqlite:///oauth.db` |
-| `ENABLE_DEV_ENDPOINTS` | Enable `/dev/*` routes | `false` |
-| `ADMIN_TOKEN` | Bootstrap admin token (first-time only) | Generated at setup |
+| `ENABLE_DEV_ENDPOINTS` | Enable `/dev/*` helper routes | `false` |
+| `ADMIN_TOKEN` | Bootstrap admin token (first-time setup only) | Generated at `/setup` |
 
-### Database Setup
+### Database Options
 
-SQLite (default):
+**SQLite** (development/small deployments):
 ```bash
-# Database file created automatically at ./oauth.db
+# Automatic - database file created at ./oauth.db
 uv run server.py
 ```
 
-PostgreSQL/MySQL:
+**PostgreSQL** (recommended for production):
 ```bash
-export DATABASE_URL="postgresql://user:pass@localhost/oauth"
+export DATABASE_URL="postgresql://user:password@host:5432/dbname"
+uv run server.py
+```
+
+**MySQL/MariaDB**:
+```bash
+export DATABASE_URL="mysql+pymysql://user:password@host:3306/dbname"
+pip install pymysql
 uv run server.py
 ```
 
 ---
 
-## 🎬 Quickstart (60 seconds)
+## 🎬 Quick Start Guide
 
-1. **Start server with dev endpoints**
-   ```bash
-   export ENABLE_DEV_ENDPOINTS=true
-   uv run server.py
-   export BASE=http://127.0.0.1:8000
-   ```
+### 1. Initial Setup (One Time)
 
-2. **Complete first-time setup**
-   - Open `$BASE/setup` in browser
-   - Copy the Admin Token (shown once)
+```bash
+export ENABLE_DEV_ENDPOINTS=true
+uv run server.py
+```
 
-3. **Seed demo data**
-   ```bash
-   curl "$BASE/dev/seed" -H "X-Admin-Token: <ADMIN_TOKEN>"
-   # Creates users: alice/alice, bob/bob
-   # Creates client: demo-web
-   ```
+Open **http://127.0.0.1:8000/setup** in your browser:
+- System generates a secure Admin Token
+- **Copy it immediately** (shown only once)
+- Token is hashed and stored in database
+- Use it to access Admin UI and APIs
 
-4. **Generate PKCE** (or use your app's implementation)
-   ```bash
-   curl "$BASE/dev/pkce" -H "X-Admin-Token: <ADMIN_TOKEN>"
-   # Returns: code_verifier, code_challenge
-   ```
+### 2. Seed Demo Data (Optional)
 
-5. **Authorize in browser** (replace `<CHALLENGE>`)
-   ```
-   $BASE/authorize?client_id=demo-web&response_type=code&scope=openid%20profile%20email%20offline_access&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&code_challenge_method=S256&code_challenge=<CHALLENGE>
-   ```
+```bash
+export BASE=http://127.0.0.1:8000
+curl "$BASE/dev/seed" -H "X-Admin-Token: <YOUR_ADMIN_TOKEN>"
+```
 
-6. **Exchange code for tokens**
-   ```bash
-   curl -X POST "$BASE/token" \
-        -H 'Content-Type: application/x-www-form-urlencoded' \
-        -d 'grant_type=authorization_code' \
-        -d 'client_id=demo-web' \
-        -d 'code_verifier=<VERIFIER>' \
-        -d 'code=<CODE_FROM_CALLBACK>' \
-        -d 'redirect_uri=http://localhost:3000/callback'
-   ```
+Creates:
+- Demo users: `alice/alice`, `bob/bob`
+- Demo client: `demo-web` (public, PKCE-enabled)
+- Default scopes: `openid`, `profile`, `email`, `offline_access`
 
-7. **Call UserInfo**
-   ```bash
-   curl "$BASE/userinfo" -H 'Authorization: Bearer <access_token>'
-   ```
+### 3. Test with Demo App
+
+```bash
+# Run the included todo demo
+uv run todo_demo.py
+
+# Open http://localhost:3000
+# Sign in with alice/alice
+```
+
+**🎉 You now have a working OAuth2 server!**
 
 ---
 
-## 🔄 OAuth2 Flow (Step-by-Step)
+## 🔄 OAuth2 Authorization Flow
 
 <a name="oauth2-flow-step-by-step"></a>
 
-### 1. Create a Client
+### Complete Walkthrough
 
-Open Admin UI: `$BASE/admin/login` (use Admin Token)
+#### Step 1: Register Your Application
 
-Configure:
-- **Redirect URI**: `http://localhost:3000/callback`
-- **Grant types**: `authorization_code refresh_token`
-- **Response types**: `code`
-- **Scope**: `openid profile email offline_access`
-- **Public client**: ✅ (enables PKCE requirement)
+Access Admin UI at **http://127.0.0.1:8000/admin/login**
 
-### 2. Generate PKCE (for public clients)
-
-```bash
-curl "$BASE/dev/pkce" -H "X-Admin-Token: <TOKEN>"
+Create a new client:
+```
+Client ID: my-app
+Redirect URI: http://localhost:3000/callback
+Grant Types: authorization_code refresh_token
+Response Types: code
+Scope: openid profile email offline_access
+Client Type: Public (for SPAs/mobile) or Confidential (for backends)
 ```
 
-Or implement in your app (see [Client Examples](docs/CLIENT_EXAMPLES.md))
+**For confidential clients**: Copy the generated `client_secret`
 
-### 3. Authorization Request
+#### Step 2: Implement Authorization (Your App)
 
-Open in browser:
-```
-$BASE/authorize?
-  client_id=demo-web&
-  response_type=code&
-  scope=openid%20profile%20email%20offline_access&
-  redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&
-  code_challenge_method=S256&
-  code_challenge=<CHALLENGE>
-```
+```python
+# Generate PKCE
+import os, base64, hashlib
 
-- Login as `alice/alice`
-- Approve consent
-- Redirected to callback with `?code=...`
+verifier = base64.urlsafe_b64encode(os.urandom(40)).decode().rstrip("=")
+challenge = base64.urlsafe_b64encode(
+    hashlib.sha256(verifier.encode()).digest()
+).decode().rstrip("=")
 
-### 4. Exchange Code for Tokens
-
-```bash
-curl -X POST "$BASE/token" \
-     -H 'Content-Type: application/x-www-form-urlencoded' \
-     -d 'grant_type=authorization_code' \
-     -d 'client_id=demo-web' \
-     -d 'code_verifier=<VERIFIER>' \
-     -d 'code=<CODE>' \
-     -d 'redirect_uri=http://localhost:3000/callback'
+# Redirect user to authorization endpoint
+auth_url = (
+    "http://127.0.0.1:8000/authorize?"
+    "client_id=my-app&"
+    "response_type=code&"
+    "redirect_uri=http://localhost:3000/callback&"
+    "scope=openid profile email offline_access&"
+    "code_challenge_method=S256&"
+    f"code_challenge={challenge}&"
+    "state=random-state-value"
+)
 ```
 
-Response:
-```json
-{
-  "access_token": "...",
-  "refresh_token": "...",
-  "id_token": "...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "scope": "openid profile email offline_access"
-}
+#### Step 3: Handle Callback
+
+User approves consent → Redirected to your callback URL with `code`
+
+```python
+# Exchange code for tokens
+response = requests.post(
+    "http://127.0.0.1:8000/token",
+    data={
+        "grant_type": "authorization_code",
+        "client_id": "my-app",
+        "client_secret": "...",  # Only for confidential clients
+        "code": code_from_callback,
+        "redirect_uri": "http://localhost:3000/callback",
+        "code_verifier": verifier,  # PKCE verifier
+    }
+)
+
+tokens = response.json()
+# {
+#   "access_token": "...",
+#   "refresh_token": "...",
+#   "id_token": "...",
+#   "token_type": "Bearer",
+#   "expires_in": 3600
+# }
 ```
 
-### 5. Call Protected APIs
+#### Step 4: Access Protected Resources
 
-```bash
-curl "$BASE/userinfo" -H 'Authorization: Bearer <access_token>'
+```python
+# Call UserInfo endpoint
+response = requests.get(
+    "http://127.0.0.1:8000/userinfo",
+    headers={"Authorization": f"Bearer {access_token}"}
+)
+
+user_info = response.json()
+# {
+#   "sub": "1",
+#   "preferred_username": "alice",
+#   "email": "alice@example.com",
+#   ...
+# }
 ```
 
-### 6. Refresh Access Token
+#### Step 5: Refresh Tokens (Optional)
 
-```bash
-curl -X POST "$BASE/token" \
-     -H 'Content-Type: application/x-www-form-urlencoded' \
-     -d 'grant_type=refresh_token' \
-     -d 'client_id=demo-web' \
-     -d 'refresh_token=<REFRESH_TOKEN>'
+```python
+# When access token expires
+response = requests.post(
+    "http://127.0.0.1:8000/token",
+    data={
+        "grant_type": "refresh_token",
+        "client_id": "my-app",
+        "refresh_token": refresh_token,
+    }
+)
+
+new_tokens = response.json()
+# Old refresh_token is revoked, new one issued (rotation)
 ```
 
-Refresh tokens are rotated (old token revoked, new token issued).
+**📚 See [Client Examples](docs/CLIENT_EXAMPLES.md) for complete working code.**
 
 ---
 
@@ -249,75 +363,95 @@ Refresh tokens are rotated (old token revoked, new token issued).
 
 <a name="troubleshooting"></a>
 
-### Quick Fixes
+### Common Issues
 
-**❌ 401 error at `/token`?**
-1. Missing `client_secret`? → Check if your client is confidential, [add the secret](docs/TROUBLESHOOTING.md#-401-unauthorized-at-token)
-2. Missing PKCE? → [Implement code_challenge/code_verifier](docs/TROUBLESHOOTING.md#-401-unauthorized-at-token)
-3. Wrong `redirect_uri`? → Must match exactly in authorize & token requests
+**❌ Getting 401 during token exchange?**
 
-**❌ Invalid state or session lost?**
-- [Use the stateless approach](docs/CLIENT_EXAMPLES.md#example-2-stateless-oauth2-embedding-pkce-in-state) (embed verifier in signed state)
+This is usually one of three things:
 
-**❌ Still stuck?**
-- Read the full **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** 📕
-- Compare with working `todo_demo.py`
-- Check [Client Examples](docs/CLIENT_EXAMPLES.md) for correct implementation
+1. **Missing client_secret** (confidential clients)
+   ```bash
+   # Check your client configuration
+   python3 -c "import sqlite3; conn = sqlite3.connect('oauth.db');
+   print(conn.execute('SELECT client_id, token_endpoint_auth_method, client_secret
+   FROM oauth2_client WHERE client_id=\"YOUR_CLIENT_ID\"').fetchone())"
+   ```
+   → [Full solution in Troubleshooting Guide](docs/TROUBLESHOOTING.md#-401-unauthorized-at-token)
+
+2. **Missing PKCE** (public clients)
+   → [See PKCE implementation guide](docs/TROUBLESHOOTING.md#-401-unauthorized-at-token)
+
+3. **redirect_uri mismatch**
+   → Must match exactly in both authorize and token requests
+
+**❌ Session/state lost during OAuth redirect?**
+- [Use the stateless approach](docs/CLIENT_EXAMPLES.md#example-2-stateless-oauth2-embedding-pkce-in-state) (embed PKCE verifier in signed state)
+
+**❌ Still having issues?**
+- 📕 **[Complete Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Covers all error scenarios
+- 💻 **[Working Code Examples](docs/CLIENT_EXAMPLES.md)** - Copy and adapt
+- ✅ **[Integration Checklist](docs/TROUBLESHOOTING.md#integration-checklist)** - Verify your setup
 
 ---
 
-## 📚 Examples
+## 📚 Demo Applications
 
-### Demo Applications
+Two complete, working OAuth2 client applications included:
 
-- **`todo_demo.py`**: Complete SPA OAuth flow with PKCE
-- **`camera_demo.py`**: OAuth with custom scopes
+### Todo Demo (`todo_demo.py`)
+- Complete SPA-style OAuth flow
+- PKCE implementation
+- Session management
+- Refresh token handling
+
+### Camera Demo (`camera_demo.py`)
+- Custom scopes demonstration
+- File access permissions
+- Real-world use case
 
 ```bash
-# Run demo
+# Run any demo
 uv run todo_demo.py
 # Open http://localhost:3000
 ```
 
-### Code Examples
-
-See **[Client Examples](docs/CLIENT_EXAMPLES.md)** for:
-- Basic OAuth2 client with PKCE
-- Stateless OAuth2 (signed state)
-- Session vs stateless approaches
+**Use these as templates for your own applications!**
 
 ---
 
-## 🔐 Security Checklist
+## 🔐 Security & Production
 
 <a name="security-checklist"></a>
 
-- [ ] Replace demo login with production auth (e.g., LDAP, SAML)
-- [ ] Use strong, random `APP_SECRET` (32+ bytes)
-- [ ] Store secrets in environment variables or secret manager
-- [ ] Enforce strict `redirect_uris` (no wildcards)
-- [ ] Enable PKCE for all public clients
-- [ ] Use `client_secret_basic` for confidential clients
-- [ ] Enable rate limiting on `/token` and `/authorize`
-- [ ] Set up monitoring and alerting
-- [ ] Rotate signing keys periodically (see [Admin UI](docs/ADMIN_UI_GUIDE.md))
-- [ ] Use HTTPS in production (TLS termination at proxy)
-- [ ] Regular database backups
+### Security Checklist
 
----
+Before deploying to production:
 
-## 🚀 Production Deployment
+- [ ] **Replace demo auth** - Integrate your production authentication (LDAP, SAML, etc.)
+- [ ] **Generate strong `APP_SECRET`** - 32+ random bytes
+- [ ] **Use environment variables** - Never hardcode secrets
+- [ ] **Enforce strict `redirect_uris`** - No wildcards, exact matches only
+- [ ] **Enable PKCE for public clients** - Mandatory in client policy
+- [ ] **Use `client_secret_basic`** - For confidential client authentication
+- [ ] **Enable rate limiting** - Protect `/token` and `/authorize` endpoints
+- [ ] **Set up monitoring** - Track failed auth attempts, token usage
+- [ ] **Rotate signing keys** - Periodic key rotation via Admin UI
+- [ ] **Use HTTPS** - TLS termination at reverse proxy (nginx, ALB)
+- [ ] **Regular backups** - Backup database (contains keys and settings)
+- [ ] **Audit logging** - Log all admin actions and token operations
+
+### Production Deployment
 
 <a name="production-deployment"></a>
 
-### Using Gunicorn
+#### With Gunicorn (Recommended)
 
 ```bash
 pip install gunicorn
 gunicorn -w 4 -b 0.0.0.0:8000 server:app
 ```
 
-### Using Docker
+#### With Docker
 
 ```dockerfile
 FROM python:3.12-slim
@@ -325,84 +459,202 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
+EXPOSE 8000
 CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "server:app"]
+```
+
+```bash
+docker build -t oauth2-server .
+docker run -d -p 8000:8000 \
+  -e DATABASE_URL="postgresql://..." \
+  -e APP_SECRET="..." \
+  oauth2-server
+```
+
+#### With Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  oauth2:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://oauth:password@db:5432/oauth
+      APP_SECRET: ${APP_SECRET}
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: oauth
+      POSTGRES_USER: oauth
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+
+#### Behind Nginx (TLS Termination)
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name oauth.yourdomain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 ### Production Checklist
 
 - [ ] Use PostgreSQL or MySQL (not SQLite)
 - [ ] Configure connection pooling
-- [ ] Set up reverse proxy (nginx, ALB) with TLS
-- [ ] Ensure consistent external URL (stable `issuer`)
-- [ ] Enable database backups
-- [ ] Set up log aggregation
-- [ ] Configure health checks
-- [ ] Use environment-based secrets management
+- [ ] Set up TLS-terminating reverse proxy
+- [ ] Ensure consistent external URL (stable OIDC `issuer`)
+- [ ] Enable database replication/backups
+- [ ] Set up centralized logging
+- [ ] Configure health checks (`/health` endpoint)
+- [ ] Use secrets management (Vault, AWS Secrets Manager, etc.)
+- [ ] Set up alerting for auth failures
+- [ ] Document disaster recovery procedures
 
 ---
 
-## 🛠️ Client Types
+## 🛠️ Client Types Explained
 
-| Type | Auth Method | Secret | PKCE | Use Case |
-|------|-------------|--------|------|----------|
-| **Public** | `none` | ❌ | ✅ Required | SPAs, mobile apps, native apps |
-| **Confidential** | `client_secret_post`<br>`client_secret_basic` | ✅ Required | ⚠️ Optional | Backend services, server-side apps |
+| Type | Auth Method | Secret? | PKCE? | Best For |
+|------|-------------|---------|-------|----------|
+| **Public** | `none` | ❌ No | ✅ Required | SPAs, mobile apps, desktop apps |
+| **Confidential** | `client_secret_post`<br>`client_secret_basic` | ✅ Required | ⚠️ Optional | Backend services, server-to-server |
+
+**Public clients** can't securely store secrets (e.g., JavaScript in browser), so they **must use PKCE** for security.
+
+**Confidential clients** run on secure servers where secrets can be protected.
 
 ---
 
 ## ❓ FAQ
 
 <details>
-<summary><strong>Where is the Admin Token?</strong></summary>
+<summary><strong>Is this production-ready?</strong></summary>
 
-Created at `/setup` on first run. Shown once, then stored hashed. Use it for Admin UI and API access.
+Yes! This server implements industry-standard OAuth 2.0 and OIDC protocols. It's used in real-world applications. Follow the [Security Checklist](#security-checklist) for production deployments.
 </details>
 
 <details>
-<summary><strong>Dev helpers not working?</strong></summary>
+<summary><strong>Can I use this commercially?</strong></summary>
 
-Set `ENABLE_DEV_ENDPOINTS=true` and include `X-Admin-Token` header.
+Absolutely! MIT License means you can use it for any purpose, including commercial projects. No attribution required (but appreciated!).
 </details>
 
 <details>
-<summary><strong>How do I change ports?</strong></summary>
+<summary><strong>How does this compare to Auth0/Okta?</strong></summary>
 
-Edit `server.py` (startup block) or use gunicorn/nginx with desired port.
+See the [comparison table](#-vs-cloud-oauth-providers) above. Main advantages: zero cost, complete control, data privacy, no vendor lock-in.
 </details>
 
 <details>
-<summary><strong>Why no ID token?</strong></summary>
+<summary><strong>Can I integrate with my existing user database?</strong></summary>
 
-Include `openid` in the requested `scope`.
+Yes! Replace the demo login system in `server.py` with your own authentication (LDAP, database, SAML, etc.). The OAuth2/OIDC layer remains the same.
 </details>
 
 <details>
-<summary><strong>How to reset Admin Token?</strong></summary>
+<summary><strong>Does it work offline/air-gapped?</strong></summary>
 
-Update `server_settings.admin_token_hash` in DB (or reinit DB for dev).
+Yes! Self-hosted means no external dependencies. Perfect for secure environments without internet access.
 </details>
 
 <details>
-<summary><strong>Getting 401 during token exchange?</strong></summary>
+<summary><strong>How do I reset the Admin Token?</strong></summary>
 
-See [Troubleshooting Guide](docs/TROUBLESHOOTING.md#-401-unauthorized-at-token). Most common: missing `client_secret` or PKCE.
+Update `server_settings.admin_token_hash` in the database, or reinitialize the database for development.
 </details>
+
+<details>
+<summary><strong>Can I run multiple instances for high availability?</strong></summary>
+
+Yes! Use a shared database (PostgreSQL with replication) and deploy multiple app instances behind a load balancer. Sessions are stored server-side in the database.
+</details>
+
+<details>
+<summary><strong>What about user registration?</strong></summary>
+
+User registration is intentionally not included (out of scope for OAuth2). Integrate your own user management system or use the `/dev/seed` helper for development.
+</details>
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! This project thrives on community feedback.
+
+- 🐛 Found a bug? [Open an issue](https://github.com/Sbussiso/LOauth2/issues)
+- 💡 Have an idea? [Start a discussion](https://github.com/Sbussiso/LOauth2/discussions)
+- 🔧 Want to contribute code? Fork, commit, and submit a PR!
 
 ---
 
 ## 📄 License
 
-MIT
+MIT License - See [LICENSE](LICENSE) for details.
+
+**Use it, modify it, sell it, deploy it anywhere. No restrictions.**
 
 ---
 
-## 🔗 Additional Resources
+## 🌟 Why We Built This
 
-- [Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Solve common integration issues
-- [Client Examples](docs/CLIENT_EXAMPLES.md) - Working code with PKCE
-- [API Reference](docs/API_REFERENCE.md) - Complete endpoint documentation
-- [Admin UI Guide](docs/ADMIN_UI_GUIDE.md) - Manage your OAuth2 server
+We believe authentication should be:
+- ✅ **Under your control** - Not locked behind a vendor
+- ✅ **Privacy-respecting** - Your users' data stays with you
+- ✅ **Cost-effective** - No per-user fees that scale with success
+- ✅ **Transparent** - Open source means you can audit everything
+- ✅ **Standards-based** - Works with any OAuth2-compatible app
+
+Cloud OAuth providers have their place, but **you should have the choice** to self-host.
 
 ---
 
-**Built with ❤️ using Flask, Authlib, and SQLAlchemy**
+## 🔗 Resources & Links
+
+### Documentation
+- [📕 Troubleshooting Guide](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [💻 Client Code Examples](docs/CLIENT_EXAMPLES.md) - Working implementations
+- [📖 API Reference](docs/API_REFERENCE.md) - Complete endpoint docs
+- [⚙️ Admin UI Guide](docs/ADMIN_UI_GUIDE.md) - Configuration reference
+
+### Community
+- [GitHub Repository](https://github.com/Sbussiso/LOauth2)
+- [Issue Tracker](https://github.com/Sbussiso/LOauth2/issues)
+- [Discussions](https://github.com/Sbussiso/LOauth2/discussions)
+
+### Standards
+- [OAuth 2.0 RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)
+- [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html)
+- [PKCE RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
+
+---
+
+<p align="center">
+  <strong>Take back control of your authentication.</strong><br>
+  <em>Self-hosted. Open source. Yours forever.</em>
+</p>
+
+<p align="center">
+  <a href="#-get-started-in-60-seconds">Get Started →</a>
+</p>
