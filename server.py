@@ -909,13 +909,130 @@ def admin_ui_clients():
     db = SessionLocal()
     try:
         items = db.query(OAuth2Client).all()
-        rows = ''.join([f"<tr><td>{c.client_id}</td><td>{c.client_name or ''}</td><td><a class='btn' href='/admin/ui/clients/{c.client_id}'>Edit</a></td></tr>" for c in items])
+        rows = ''.join([f"<tr><td>{c.client_id}</td><td>{c.client_name or ''}</td><td><a class='btn' href='/admin/ui/clients/{c.client_id}'>Edit</a> <form method='post' action='/admin/ui/clients/delete' style='display:inline;margin-left:6px'><input type='hidden' name='client_id' value='{c.client_id}'><button class='btn' type='submit'>Delete</button></form></td></tr>" for c in items])
     finally:
         db.close()
     body = f"""
     <h3>Clients</h3>
     <table><tr><th>Client ID</th><th>Name</th><th>Actions</th></tr>{rows}</table>
-    <p><a class='btn' href='/admin/ui/clients/new'>Create Client</a></p>
+    <p>
+      <a class='btn' href='/admin/ui/clients/wizard'>Beginner Wizard</a>
+      <a class='btn' href='/admin/ui/clients/new'>Advanced Setup</a>
+    </p>
+    """
+    return render_template_string(_admin_layout(body))
+ 
+@app.route('/admin/ui/clients/delete', methods=['POST'])
+def admin_ui_client_delete():
+    r = _require_admin_ui()
+    if r: return r
+    client_id = (request.form.get('client_id') or '').strip()
+    db = SessionLocal()
+    try:
+        if client_id:
+            db.query(RememberedConsent).filter_by(client_id=client_id).delete()
+            db.query(OAuth2AuthorizationCode).filter_by(client_id=client_id).delete()
+            db.query(OAuth2Token).filter_by(client_id=client_id).delete()
+            db.query(ClientPolicy).filter_by(client_id=client_id).delete()
+            db.query(OAuth2Client).filter_by(client_id=client_id).delete()
+            db.commit()
+    finally:
+        db.close()
+    return redirect(url_for('admin_ui_clients'))
+
+@app.route('/admin/ui/clients/wizard', methods=['GET','POST'])
+def admin_ui_clients_wizard():
+    r = _require_admin_ui()
+    if r: return r
+    if request.method == 'POST':
+        template = (request.form.get('template') or '').strip()
+        desired_id = (request.form.get('client_id') or '').strip()
+        # Template presets
+        public = True
+        redirect_list = []
+        name_hint = None
+        if template == 'spa3000':
+            public = True
+            name_hint = 'SPA on 3000'
+            redirect_list = ['http://127.0.0.1:3000/callback', 'http://localhost:3000/callback']
+        elif template == 'python5000':
+            public = False
+            name_hint = 'Python web on 5000'
+            redirect_list = ['http://127.0.0.1:5000/oauth2/callback', 'http://localhost:5000/oauth2/callback']
+        elif template == 'cli5000':
+            public = True
+            name_hint = 'CLI/Notebook on 5000'
+            redirect_list = ['http://127.0.0.1:5000/oauth2/callback', 'http://localhost:5000/oauth2/callback']
+        else:
+            return render_template_string(_admin_layout("<p style='color:#ff7272'>Unknown template.</p><p><a class='btn' href='/admin/ui/clients/wizard'>Back</a></p>"))
+
+        grant_types = 'authorization_code refresh_token'
+        response_types = 'code'
+        scope = 'openid profile email offline_access'
+        auth_method = 'none' if public else 'client_secret_post'
+        secret = None if public else base64.urlsafe_b64encode(os.urandom(32)).decode()
+
+        # Generate a unique client_id when not provided
+        base_id = desired_id or (
+            'spa-web' if template == 'spa3000' else (
+            'python-web' if template == 'python5000' else 'cli-app'))
+        db = SessionLocal()
+        try:
+            cid = base_id
+            # Ensure uniqueness
+            i = 1
+            while db.query(OAuth2Client).filter_by(client_id=cid).first() is not None:
+                i += 1
+                cid = f"{base_id}-{i}"
+
+            c = OAuth2Client(
+                client_id=cid,
+                client_secret=secret,
+                client_name=name_hint or cid,
+                redirect_uris=' '.join(redirect_list),
+                grant_types=grant_types,
+                response_types=response_types,
+                scope=scope,
+                token_endpoint_auth_method=auth_method,
+                require_consent=True,
+            )
+            db.add(c)
+            # Create a default policy suitable for the template
+            pol = ClientPolicy(
+                client_id=cid,
+                allowed_scopes='openid profile email offline_access',
+                default_scopes='openid profile email',
+                require_pkce=True,
+                consent_policy='once',
+            )
+            db.add(pol)
+            db.commit()
+        finally:
+            db.close()
+        return redirect(url_for('admin_ui_client_detail', client_id=cid))
+
+    # GET: show simple template choices with optional client_id
+    body = """
+    <h3>Beginner Client Wizard</h3>
+    <p>Select your app type. We'll prefill a secure configuration with correct redirect URIs and PKCE.</p>
+    <div class='card'>
+      <form method='post' style='margin-bottom:12px'>
+        <input type='hidden' name='template' value='spa3000'>
+        <label class='field'>Optional Client ID<input name='client_id' placeholder='e.g., my-spa'></label>
+        <button class='btn' type='submit'>Create SPA (localhost:3000)</button>
+      </form>
+      <form method='post' style='margin-bottom:12px'>
+        <input type='hidden' name='template' value='python5000'>
+        <label class='field'>Optional Client ID<input name='client_id' placeholder='e.g., my-python-web'></label>
+        <button class='btn' type='submit'>Create Python Web (localhost:5000)</button>
+      </form>
+      <form method='post'>
+        <input type='hidden' name='template' value='cli5000'>
+        <label class='field'>Optional Client ID<input name='client_id' placeholder='e.g., my-cli-app'></label>
+        <button class='btn' type='submit'>Create CLI/Notebook (localhost:5000)</button>
+      </form>
+    </div>
+    <p class='muted'>Looking for full control? Use <a href='/admin/ui/clients/new'>Advanced Setup</a>.</p>
     """
     return render_template_string(_admin_layout(body))
 
@@ -1685,10 +1802,19 @@ def dev_seed():
     _require_admin()
     db = SessionLocal()
     # users
-    if not db.query(User).filter_by(username='alice').first():
+    reset = (request.args.get('reset') or '').lower() in ('1','true','yes','on')
+    u_alice = db.query(User).filter_by(username='alice').first()
+    if not u_alice:
         db.add(User(username='alice', email='alice@example.com', password_hash=generate_password_hash('alice')))
-    if not db.query(User).filter_by(username='bob').first():
+    elif reset:
+        u_alice.password_hash = generate_password_hash('alice')
+        db.add(u_alice)
+    u_bob = db.query(User).filter_by(username='bob').first()
+    if not u_bob:
         db.add(User(username='bob', email='bob@example.com', password_hash=generate_password_hash('bob')))
+    elif reset:
+        u_bob.password_hash = generate_password_hash('bob')
+        db.add(u_bob)
 
     # public PKCE client
     existing = db.query(OAuth2Client).filter_by(client_id='demo-web').first()
@@ -1757,7 +1883,7 @@ def dev_seed():
         db.add(pol)
     db.commit()
     db.close()
-    return "Seeded users and client.\nUsers: alice/alice, bob/bob\nClient: demo-web (PKCE public)"
+    return "Seeded users and client.\nUsers: alice/alice, bob/bob\nClient: demo-web (PKCE public)\n(Use ?reset=1 to reset demo user passwords)"
 
 @app.route('/dev/create_client', methods=['POST'])
 def dev_create_client():
