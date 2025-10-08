@@ -65,6 +65,11 @@ uv run server.py
 
 On first run, you will be redirected to `GET /setup` to initialize the server and set an Admin Token (shown once, then hashed in DB). Use this token to access the Admin UI and Admin APIs.
 
+### Ports
+
+- **Authorization Server (AS)**: `127.0.0.1:8000` (fixed in `server.py`).
+- **Demo apps**: `localhost:3000` (todo demo) and `localhost:3001` (camera demo) by default.
+
 ### Quickstart (60 seconds)
 
 1. Set dev env and start (enables helpers):
