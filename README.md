@@ -429,17 +429,19 @@ This is usually one of three things:
 
 ---
 
-## 📚 Demo Applications
+## 📚 Demo Applications & Integrations
 
-Two complete, working OAuth2 client applications included:
+### Included Demo Apps
 
-### Todo Demo (`todo_demo.py`)
+Two complete, working OAuth2 client applications:
+
+#### Todo Demo (`todo_demo.py`)
 - Complete SPA-style OAuth flow
 - PKCE implementation
 - Session management
 - Refresh token handling
 
-### Camera Demo (`camera_demo.py`)
+#### Camera Demo (`camera_demo.py`)
 - Custom scopes demonstration
 - File access permissions
 - Real-world use case
@@ -450,7 +452,93 @@ uv run todo_demo.py
 # Open http://localhost:3000
 ```
 
-**Use these as templates for your own applications!**
+### Real-World Integration: OpenSentry
+
+**[OpenSentry](https://github.com/yourusername/OpenSentry)** - Smart security camera system with OAuth2 authentication
+
+OpenSentry is a complete production application that integrates with this OAuth2 server for centralized authentication across multiple camera devices.
+
+**Key Features:**
+- 📹 Live video streaming with motion/object/face detection
+- 🔐 OAuth2/OIDC authentication (fallback to local auth)
+- 🌐 mDNS device discovery
+- 🏢 Multi-device SSO support
+- 🐳 Docker-ready deployment
+
+**Quick Integration:**
+
+```bash
+# 1. Start the OAuth2 server
+cd Oauth2
+uv run server.py
+
+# 2. Register OpenSentry as a client
+cat > add_opensentry_client.py << 'EOF'
+#!/usr/bin/env python3
+import os
+os.environ['DATABASE_URL'] = os.environ.get('DATABASE_URL', 'sqlite:///oauth.db')
+from server import SessionLocal, OAuth2Client
+
+db = SessionLocal()
+existing = db.query(OAuth2Client).filter_by(client_id='opensentry-device').first()
+
+redirect_uris = 'http://localhost:5000/oauth2/callback http://127.0.0.1:5000/oauth2/callback'
+scope = 'openid profile email offline_access'
+
+if existing:
+    print("Updating existing client...")
+    existing.client_secret = None
+    existing.client_name = 'OpenSentry Device'
+    existing.redirect_uris = redirect_uris
+    existing.scope = scope
+    existing.grant_types = 'authorization_code refresh_token'
+    existing.response_types = 'code'
+    existing.token_endpoint_auth_method = 'none'
+    existing.require_consent = True
+    db.commit()
+    print("✓ Client 'opensentry-device' updated")
+else:
+    print("Creating new client...")
+    client = OAuth2Client(
+        client_id='opensentry-device',
+        client_secret=None,
+        client_name='OpenSentry Device',
+        redirect_uris=redirect_uris,
+        scope=scope,
+        grant_types='authorization_code refresh_token',
+        response_types='code',
+        token_endpoint_auth_method='none',
+        require_consent=True
+    )
+    db.add(client)
+    db.commit()
+    print("✓ Client 'opensentry-device' created")
+
+db.close()
+EOF
+
+uv run python add_opensentry_client.py
+
+# 3. Start OpenSentry
+cd ../OpenSentry
+uv run server.py
+
+# 4. Configure OAuth2 in OpenSentry settings
+# Navigate to http://127.0.0.1:5000/settings
+# Select OAuth2 Authentication
+# Base URL: http://127.0.0.1:8000
+# Client ID: opensentry-device
+# Save and restart
+```
+
+**Benefits of OAuth2 with Multiple OpenSentry Devices:**
+- ✅ **Single Sign-On** - One login for all your security cameras
+- ✅ **Centralized User Management** - Add/remove users in one place
+- ✅ **Audit Trail** - Track authentication across all devices
+- ✅ **Enhanced Security** - MFA, token rotation, PKCE
+- ✅ **Graceful Fallback** - Local auth available if OAuth2 server is down
+
+See [OpenSentry documentation](https://github.com/yourusername/OpenSentry#-oauth2-setup-guide) for complete setup guide.
 
 ---
 
@@ -672,6 +760,10 @@ Cloud OAuth providers have their place, but **you should have the choice** to se
 - [💻 Client Code Examples](docs/CLIENT_EXAMPLES.md) - Working implementations
 - [📖 API Reference](docs/API_REFERENCE.md) - Complete endpoint docs
 - [⚙️ Admin UI Guide](docs/ADMIN_UI_GUIDE.md) - Configuration reference
+
+### Related Projects
+- [📹 OpenSentry](https://github.com/yourusername/OpenSentry) - Smart security camera system with OAuth2 integration
+- [🎛️ OpenSentry Command](https://github.com/yourusername/OpenSentry-Command) - Device discovery and management dashboard
 
 ### Community
 - [GitHub Repository](https://github.com/Sbussiso/LOauth2)

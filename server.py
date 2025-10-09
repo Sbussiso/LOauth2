@@ -277,7 +277,12 @@ class ServerSettings(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-Base.metadata.create_all(engine)
+# Create tables with checkfirst to avoid race conditions with multiple workers
+try:
+    Base.metadata.create_all(engine, checkfirst=True)
+except Exception as e:
+    # If tables already exist (race condition with multiple workers), ignore
+    print(f"Note: Database tables may already exist: {e}")
 
 # ----------------------
 # OAuth2 Server Setup

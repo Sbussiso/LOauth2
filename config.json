@@ -1,0 +1,13 @@
+{
+  "clients": {
+    "opensentry-device": {
+      "client_secret": null,
+      "redirect_uris": [
+        "http://localhost:5000/oauth2/callback",
+        "http://127.0.0.1:5000/oauth2/callback"
+      ],
+      "scopes": ["openid", "profile", "email", "offline_access"],
+      "is_confidential": false
+    }
+  }
+}
