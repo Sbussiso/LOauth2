@@ -27,19 +27,17 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install flask authlib sqlalchemy
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Install tools (jq)
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Start server
+      - name: Start server (uv)
         run: |
-          nohup python server.py > server.log 2>&1 &
+          nohup uv run --with flask --with authlib --with sqlalchemy server.py > server.log 2>&1 &
           echo $! > server.pid
 
       - name: Wait for health
