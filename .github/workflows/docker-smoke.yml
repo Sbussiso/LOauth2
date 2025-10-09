@@ -48,12 +48,12 @@ jobs:
           docker run -d --name oauth2 \
             -p 8000:8000 \
             -e ENABLE_DEV_ENDPOINTS=true \
-            local/oauth2:ci
+            local/oauth2:ci uv run gunicorn -w 1 -b 0.0.0.0:8000 server:app
 
       - name: Wait for health
         run: |
           set -euo pipefail
-          for i in {1..60}; do
+          for i in {1..90}; do
             if curl -fsS --retry 3 --retry-all-errors --connect-timeout 2 --max-time 5 "$BASE/health" >/dev/null; then
               echo "Container is healthy"; exit 0; fi
             sleep 1; done
