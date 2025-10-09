@@ -21,6 +21,10 @@
 - **`GET /admin/login`** - Admin UI login page
 - **`GET /admin/ui`** - Admin dashboard
 - **`GET/POST /admin/ui/scopes`** - Manage scopes
+- **`GET /admin/ui/users`** - List users
+- **`GET/POST /admin/ui/users/new`** - Create user
+- **`GET/POST /admin/ui/users/<id>`** - Edit user (email/password, revoke tokens)
+- **`POST /admin/ui/users/delete`** - Delete user (with cleanup)
 - **`GET/POST /admin/ui/clients`** - Manage clients
 - **`GET/POST /admin/ui/clients/<client_id>`** - Edit specific client
 - **`GET/POST /admin/ui/keys`** - Manage signing keys
@@ -39,6 +43,9 @@ Requires `ENABLE_DEV_ENDPOINTS=true` and `X-Admin-Token`.
 - **`GET /dev/seed`** - Seed demo data (users, clients)
 - **`POST /dev/create_client`** - Quick client creation
 - **`GET /dev/pkce`** - Generate PKCE verifier/challenge pair
+
+### Health
+- **`GET /health`** - Health probe (returns `{ "status": "ok" }`)
 
 ## Data Model
 

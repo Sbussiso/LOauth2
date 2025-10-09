@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  oauth2:
+    build: .
+    container_name: oauth2-server
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/oauth.db}
+      APP_SECRET: ${APP_SECRET:-change-this-in-production-use-env-file}
+      ENABLE_DEV_ENDPOINTS: ${ENABLE_DEV_ENDPOINTS:-false}
+    volumes:
+      - app_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request,sys; sys.exit(0) if urllib.request.urlopen(\"http://127.0.0.1:8000/health\").getcode()==200 else sys.exit(1)' "]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - oauth2-network
+
+volumes:
+  app_data:
+    driver: local
+
+networks:
+  oauth2-network:
+    driver: bridge

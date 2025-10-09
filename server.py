@@ -659,6 +659,7 @@ def _enforce_setup_wizard():
         '/favicon.ico',
         '/.well-known/openid-configuration',
         '/.well-known/jwks.json',
+        '/health',
     }
     if path == '/' or path.startswith('/setup'):
         return None
@@ -843,6 +844,7 @@ def admin_ui():
     <p>Manage configuration without hardcoding. Use the panels below to configure scopes, clients, and signing keys.</p>
     <div class='row'>
       <a class='btn' href='/admin/ui/scopes'>Scopes</a>
+      <a class='btn' href='/admin/ui/users'>Users</a>
       <a class='btn' href='/admin/ui/clients'>Clients</a>
       <a class='btn' href='/admin/ui/keys'>Signing Keys</a>
     </div>
@@ -901,6 +903,144 @@ def admin_ui_scope_delete():
     finally:
         db.close()
     return redirect(url_for('admin_ui_scopes'))
+
+@app.route('/admin/ui/users')
+def admin_ui_users():
+    r = _require_admin_ui()
+    if r: return r
+    db = SessionLocal()
+    try:
+        items = db.query(User).all()
+        rows = ''.join([
+            f"<tr><td>{u.id}</td><td>{u.username}</td><td>{u.email or ''}</td>"
+            f"<td><a class='btn' href='/admin/ui/users/{u.id}'>Edit</a> "
+            f"<form method='post' action='/admin/ui/users/delete' style='display:inline;margin-left:6px'>"
+            f"<input type='hidden' name='user_id' value='{u.id}'><button class='btn' type='submit'>Delete</button></form></td></tr>"
+            for u in items
+        ])
+    finally:
+        db.close()
+    body = f"""
+    <h3>Users</h3>
+    <table><tr><th>ID</th><th>Username</th><th>Email</th><th>Actions</th></tr>{rows}</table>
+    <p><a class='btn' href='/admin/ui/users/new'>Create User</a></p>
+    """
+    return render_template_string(_admin_layout(body))
+
+@app.route('/admin/ui/users/new', methods=['GET','POST'])
+def admin_ui_users_new():
+    r = _require_admin_ui()
+    if r: return r
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        email = (request.form.get('email') or '').strip()
+        password = (request.form.get('password') or '').strip()
+        if not username or not password:
+            return render_template_string(_admin_layout("<p style='color:#ff7272'>Username and password are required.</p><p><a class='btn' href='/admin/ui/users/new'>Back</a></p>"))
+        db = SessionLocal()
+        try:
+            if db.query(User).filter_by(username=username).first():
+                return render_template_string(_admin_layout("<p style='color:#ff7272'>Username already exists.</p><p><a class='btn' href='/admin/ui/users/new'>Back</a></p>"))
+            u = User(username=username, email=email or None, password_hash=generate_password_hash(password))
+            db.add(u)
+            db.commit()
+            uid = u.id
+        finally:
+            db.close()
+        return redirect(url_for('admin_ui_user_detail', user_id=uid))
+    body = """
+      <h3>Create User</h3>
+      <form method='post'>
+        <label class='field'>
+          <div class='label-row'>Username</div>
+          <input name='username' required>
+        </label>
+        <label class='field'>
+          <div class='label-row'>Email</div>
+          <input name='email'>
+        </label>
+        <label class='field'>
+          <div class='label-row'>Password</div>
+          <input type='password' name='password' required>
+        </label>
+        <button class='btn' type='submit'>Create</button>
+      </form>
+    """
+    return render_template_string(_admin_layout(body))
+
+@app.route('/admin/ui/users/<int:user_id>', methods=['GET','POST'])
+def admin_ui_user_detail(user_id):
+    r = _require_admin_ui()
+    if r: return r
+    db = SessionLocal()
+    try:
+        u = db.get(User, user_id)
+        if not u:
+            return render_template_string(_admin_layout(f"<p>User not found: {user_id}</p>"))
+        if request.method == 'POST':
+            action = request.form.get('action') or 'update'
+            if action == 'update':
+                email = (request.form.get('email') or '').strip()
+                new_pw = (request.form.get('password') or '').strip()
+                u.email = email or None
+                if new_pw:
+                    u.password_hash = generate_password_hash(new_pw)
+                db.add(u)
+                db.commit()
+                return redirect(url_for('admin_ui_user_detail', user_id=user_id))
+            if action == 'revoke_tokens':
+                # Revoke all tokens for this user (best-effort)
+                toks = db.query(OAuth2Token).filter_by(user_id=user_id, revoked=False).all()
+                for t in toks:
+                    t.revoked = True
+                    db.add(t)
+                db.commit()
+                return redirect(url_for('admin_ui_user_detail', user_id=user_id))
+        body = f"""
+        <h3>User: {u.username} (ID {u.id})</h3>
+        <form method='post'>
+          <input type='hidden' name='action' value='update'>
+          <label class='field'>
+            <div class='label-row'>Email</div>
+            <input name='email' value='{u.email or ''}'>
+          </label>
+          <label class='field'>
+            <div class='label-row'>New Password (leave blank to keep)</div>
+            <input type='password' name='password'>
+          </label>
+          <button class='btn' type='submit'>Save</button>
+        </form>
+        <hr>
+        <form method='post'>
+          <input type='hidden' name='action' value='revoke_tokens'>
+          <button class='btn' type='submit'>Revoke All Tokens</button>
+        </form>
+        <p><a class='btn' href='/admin/ui/users'>Back to Users</a></p>
+        """
+        return render_template_string(_admin_layout(body))
+    finally:
+        db.close()
+
+@app.route('/admin/ui/users/delete', methods=['POST'])
+def admin_ui_user_delete():
+    r = _require_admin_ui()
+    if r: return r
+    uid_raw = (request.form.get('user_id') or '').strip()
+    try:
+        uid = int(uid_raw)
+    except Exception:
+        return redirect(url_for('admin_ui_users'))
+    db = SessionLocal()
+    try:
+        # Cleanup related records
+        db.query(OAuth2Token).filter_by(user_id=uid).delete()
+        db.query(OAuth2AuthorizationCode).filter_by(user_id=uid).delete()
+        db.query(RememberedConsent).filter_by(user_id=uid).delete()
+        db.query(User).filter_by(id=uid).delete()
+        db.commit()
+    finally:
+        db.close()
+    return redirect(url_for('admin_ui_users'))
 
 @app.route('/admin/ui/clients')
 def admin_ui_clients():
@@ -1702,6 +1842,11 @@ def jwks():
         return jsonify({'keys': keys})
     finally:
         db.close()
+
+@app.route('/health')
+def health():
+    # Lightweight readiness/liveness probe
+    return jsonify({'status': 'ok'}), 200
 
 # ----------------------
 # Token Revocation & Introspection

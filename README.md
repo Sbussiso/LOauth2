@@ -99,7 +99,7 @@ uv run server.py
 
 ---
 
-## 🆚 vs. Cloud OAuth Providers
+## LOauth2 vs. Cloud OAuth Providers
 
 | Feature | Self-Hosted (This Project) | Auth0 / Okta / etc. |
 |---------|---------------------------|---------------------|
@@ -164,10 +164,45 @@ gunicorn -w 4 -b 0.0.0.0:8000 server:app
 ```bash
 docker build -t oauth2-server .
 docker run -p 8000:8000 \
-  -e DATABASE_URL="postgresql://..." \
+  -e DATABASE_URL="sqlite:////data/oauth.db" \
   -e APP_SECRET="..." \
+  -v oauth2_app_data:/data \
   oauth2-server
 ```
+
+#### Docker Compose (SQLite-only)
+
+```bash
+# Optional: set a strong secret for sessions
+export APP_SECRET=$(python -c 'import secrets; print(secrets.token_hex(32))')
+
+# Build and start (no .env required)
+docker compose up -d --build
+
+# Then open http://127.0.0.1:8000/setup
+```
+
+- Compose defaults to `DATABASE_URL=sqlite:////data/oauth.db` and persists data in the `app_data` volume.
+- To enable dev helpers (e.g. /dev/seed, /dev/pkce):
+  ```bash
+  export ENABLE_DEV_ENDPOINTS=true
+  docker compose up -d
+  ```
+  Then seed:
+  ```bash
+  curl "http://127.0.0.1:8000/dev/seed?reset=1" -H "X-Admin-Token: <ADMIN_TOKEN>"
+  ```
+
+#### Where your data lives (Docker)
+
+- SQLite data is stored inside the container at: `/data/oauth.db`.
+- It is persisted via the named volume `app_data` in `docker-compose.yml`.
+- The volume keeps your data when you stop/remove the container.
+- To remove all data, including the volume:
+  ```bash
+  docker compose down -v   # WARNING: deletes volumes and your data
+  ```
+
 
 ---
 

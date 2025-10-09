@@ -4,9 +4,40 @@ Use this guide to understand all fields and options in the Admin UI.
 
 ## Overview
 
-- **Dashboard**: `/admin/ui` shows quick links to Scopes, Clients, and Signing Keys
+- **Dashboard**: `/admin/ui` shows quick links to Scopes, Users, Clients, and Signing Keys
 - **Login**: `/admin/login` requires the Admin Token created during first-time setup
 - **GitHub Docs**: https://github.com/Sbussiso/LOauth2#admin-ui-reference
+
+## Managing Users
+
+Create, update, and delete local users used to authenticate on the Authorization Server.
+
+### User List
+
+- Path: `/admin/ui/users`
+- Shows ID, Username, Email
+- Actions: Edit, Delete (deletes tokens, auth codes, and remembered consents for the user)
+
+### Create User
+
+- Path: `/admin/ui/users/new`
+- Fields:
+  - Username (required, unique)
+  - Email (optional)
+  - Password (required)
+
+### Edit User
+
+- Path: `/admin/ui/users/<id>`
+- Actions:
+  - Update Email
+  - Set New Password (leave blank to keep existing)
+  - Revoke All Tokens (forces re-login on all clients)
+
+### Delete User
+
+- Path: POST `/admin/ui/users/delete`
+- Effect: Removes the user and cleans up related data (tokens, auth codes, remembered consents)
 
 ## Managing Clients
 
