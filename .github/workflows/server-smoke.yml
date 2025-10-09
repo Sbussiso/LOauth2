@@ -1,4 +1,4 @@
-name: Server smoke test
+name: Server E2E test
 
 on:
   push:
@@ -11,6 +11,13 @@ jobs:
   run-server:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      BASE: http://127.0.0.1:8000
+      ADMIN_TOKEN: ci-admin-token
+      ENABLE_DEV_ENDPOINTS: "true"
+      CLIENT_ID: demo-web
+      REDIRECT_URI: http://localhost:3000/callback
+      SCOPE: openid profile email offline_access
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,6 +32,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install flask authlib sqlalchemy
 
+      - name: Install tools (jq)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Start server
         run: |
           nohup python server.py > server.log 2>&1 &
@@ -32,11 +44,92 @@ jobs:
 
       - name: Wait for health
         run: |
-          for i in {1..40}; do
-            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+          for i in {1..60}; do
+            if curl -fsS "$BASE/health" >/dev/null; then
               echo "Server is healthy"; exit 0; fi
             sleep 1; done
           echo "Server failed to become healthy"; exit 1
+
+      - name: Initialize server (setup admin token)
+        run: |
+          # POST /setup to set admin token (idempotent on clean CI runner)
+          curl -fsS -X POST "$BASE/setup" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode "admin_token=$ADMIN_TOKEN" \
+            -o /dev/null
+
+      - name: Seed demo users and client (dev helpers)
+        run: |
+          curl -fsS "$BASE/dev/seed" -H "X-Admin-Token: $ADMIN_TOKEN" -o /dev/null
+
+      - name: Generate PKCE (dev helper)
+        run: |
+          curl -fsS "$BASE/dev/pkce" -H "X-Admin-Token: $ADMIN_TOKEN" | tee pkce.json
+          echo "PKCE:"; cat pkce.json
+          echo
+          echo "::group::Extract PKCE"
+          CODE_VERIFIER=$(jq -r '.code_verifier' pkce.json)
+          CODE_CHALLENGE=$(jq -r '.code_challenge' pkce.json)
+          if [ -z "$CODE_VERIFIER" ] || [ -z "$CODE_CHALLENGE" ]; then echo "Failed to parse PKCE"; exit 1; fi
+          echo "CODE_VERIFIER=$CODE_VERIFIER" >> $GITHUB_ENV
+          echo "CODE_CHALLENGE=$CODE_CHALLENGE" >> $GITHUB_ENV
+          echo "::endgroup::"
+
+      - name: Build authorize URL
+        run: |
+          ENC_REDIRECT=$(python -c "import urllib.parse, os; print(urllib.parse.quote_plus(os.environ['REDIRECT_URI']))")
+          ENC_SCOPE=$(python -c "import urllib.parse, os; print(urllib.parse.quote_plus(os.environ['SCOPE']))")
+          STATE=$(python -c "import secrets; print(secrets.token_urlsafe(16))")
+          AUTH_URL="$BASE/authorize?client_id=$CLIENT_ID&response_type=code&redirect_uri=$ENC_REDIRECT&scope=$ENC_SCOPE&code_challenge_method=S256&code_challenge=$CODE_CHALLENGE&state=$STATE"
+          echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
+          echo "STATE=$STATE" >> $GITHUB_ENV
+          echo "Authorize URL: $AUTH_URL"
+
+      - name: Login as alice and authorize (obtain code)
+        run: |
+          # Prepare cookie jar
+          touch cookies.txt
+          # Visit login
+          curl -fsS -c cookies.txt -b cookies.txt "$BASE/login" -o /dev/null
+          # Submit login form with next=AUTH_URL
+          NEXT_ENC=$(python -c "import urllib.parse, os; print(urllib.parse.quote_plus(os.environ['AUTH_URL']))")
+          curl -fsS -i -c cookies.txt -b cookies.txt \
+            -X POST "$BASE/login?next=$NEXT_ENC" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'username=alice' \
+            --data-urlencode 'password=alice' \
+            -D login.out -o /dev/null
+          echo '--- login.out (status + location) ---'
+          head -n 20 login.out || true
+          # Now POST to /authorize with consent to get the 302 to redirect_uri with ?code=...
+          curl -fsS -i -c cookies.txt -b cookies.txt \
+            -X POST "$AUTH_URL" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'confirm=yes' \
+            -D auth.out -o /dev/null || true
+          echo '--- auth.out (headers) ---'
+          cat auth.out
+          CODE=$(awk 'BEGIN{IGNORECASE=1} /^Location: /{print $2}' auth.out | tr -d '\r' | sed -E 's/.*[?&]code=([^&]+).*/\1/')
+          if [ -z "$CODE" ]; then echo "Failed to extract authorization code"; exit 1; fi
+          echo "CODE=$CODE" >> $GITHUB_ENV
+
+      - name: Exchange code for tokens
+        run: |
+          curl -fsS -X POST "$BASE/token" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=authorization_code' \
+            --data-urlencode "client_id=$CLIENT_ID" \
+            --data-urlencode "code_verifier=$CODE_VERIFIER" \
+            --data-urlencode "code=$CODE" \
+            --data-urlencode "redirect_uri=$REDIRECT_URI" | tee token.json
+          ACCESS_TOKEN=$(jq -r '.access_token' token.json)
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then echo "Access token missing"; cat token.json; exit 1; fi
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
+
+      - name: Call /userinfo
+        run: |
+          curl -fsS "$BASE/userinfo" -H "Authorization: Bearer $ACCESS_TOKEN" | tee userinfo.json
+          jq -e '.preferred_username == "alice"' userinfo.json >/dev/null || { echo "userinfo did not return expected user"; cat userinfo.json; exit 1; }
 
       - name: Show last server logs (on failure)
         if: failure()
