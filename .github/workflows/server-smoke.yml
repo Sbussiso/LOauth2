@@ -195,14 +195,34 @@ jobs:
           set -euo pipefail
           echo "Introspection and revocation validated in previous step."
 
+      - name: Determine allowed logout redirect
+        run: |
+          set -euo pipefail
+          # Try policy first
+          curl -fsS --retry 3 --retry-all-errors "$BASE/admin/clients/$CLIENT_ID/policy" -H "X-Admin-Token: $ADMIN_TOKEN" | tee pol.json
+          LOUT=$(jq -r '.post_logout_redirect_uris // ""' pol.json | awk '{print $1}')
+          if [ -z "$LOUT" ] || [ "$LOUT" = "null" ]; then
+            # Fallback to client's redirect_uris; prefer localhost:3000/callback if present
+            curl -fsS --retry 3 --retry-all-errors "$BASE/admin/clients/$CLIENT_ID" -H "X-Admin-Token: $ADMIN_TOKEN" | tee client_detail.json
+            RU=$(jq -r '.redirect_uris // ""' client_detail.json | tr '\n' ' ')
+            if echo "$RU" | grep -q "http://localhost:3000/callback"; then
+              LOUT="http://localhost:3000/callback"
+            else
+              # Pick first URI token
+              LOUT=$(echo "$RU" | awk '{print $1}')
+            fi
+          fi
+          if [ -z "$LOUT" ] || [ "$LOUT" = "null" ]; then echo "Could not determine logout redirect"; exit 1; fi
+          echo "LOGOUT_TARGET=$LOUT" >> $GITHUB_ENV
+
       - name: Logout redirect check
         run: |
           set -euo pipefail
           STATE=$(uv run python -c "import secrets; print(secrets.token_urlsafe(8))")
-          curl -fsS -i "$BASE/logout?client_id=$CLIENT_ID&post_logout_redirect_uri=http://localhost:3000/callback&state=$STATE" -D logout.out -o /dev/null
+          curl -fsS -i "$BASE/logout?client_id=$CLIENT_ID&post_logout_redirect_uri=$LOGOUT_TARGET&state=$STATE" -D logout.out -o /dev/null
           LOC=$(awk 'BEGIN{IGNORECASE=1} /^Location: /{print $2}' logout.out | tr -d '\r')
           echo "Logout Location: $LOC"
-          echo "$LOC" | grep -q "/callback" || { echo "Logout redirect not allowed"; exit 1; }
+          echo "$LOC" | grep -q "$LOGOUT_TARGET" || { echo "Logout redirect not allowed"; echo "Expected: $LOGOUT_TARGET"; cat logout.out; exit 1; }
           echo "$LOC" | grep -q "state=" || { echo "State param missing on logout redirect"; exit 1; }
 
       - name: Confidential client flow (client_secret_post)
@@ -280,6 +300,7 @@ jobs:
             auth3.out
             token_post.json
             token_basic.json
+            logout.out
           if-no-files-found: ignore
 
       - name: Shutdown server
