@@ -181,7 +181,6 @@ Disabled by default. Set `ENABLE_DEV_ENDPOINTS=true` to enable:
 
 - `GET /dev/seed` - Create demo users and clients
 - `GET /dev/pkce` - Generate PKCE verifier/challenge
-- `POST /dev/create_client` - Quick client creation
 
 Dev endpoints still require `X-Admin-Token` when enabled.
 

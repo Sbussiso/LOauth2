@@ -92,6 +92,7 @@ uv run server.py
 - **[Client Code Examples](docs/CLIENT_EXAMPLES.md)** - Working Python/Flask examples with PKCE
 - **[API Reference](docs/API_REFERENCE.md)** - Complete endpoint documentation
 - **[Admin UI Guide](docs/ADMIN_UI_GUIDE.md)** - Configure clients and policies
+- **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Build apps with LOauth2 (flows, PKCE, BFF, tokens, examples)
 
 ### 🚀 Advanced
 - **[Production Deployment](#production-deployment)** - Scale with Gunicorn, Docker, PostgreSQL

@@ -37,11 +37,18 @@ All Admin APIs require `X-Admin-Token` header.
 - **`GET/POST /admin/clients/<client_id>/policy`** - Get/update client policy
 - **`POST /admin/rotate_jwk`** - Rotate signing key
 
+#### Users (Admin API)
+- **`GET /admin/users`** - List users
+- **`POST /admin/users`** - Create user
+  - JSON body: `{ "username": "...", "password": "...", "email": "optional" }`
+  - Responses: `201` with created user
+- **`GET /admin/users/<id>`** - Get a user
+- **`DELETE /admin/users/<id>`** - Delete user (also deletes tokens, codes, remembered consents)
+
 ### Dev Endpoints (Optional)
 Requires `ENABLE_DEV_ENDPOINTS=true` and `X-Admin-Token`.
 
 - **`GET /dev/seed`** - Seed demo data (users, clients)
-- **`POST /dev/create_client`** - Quick client creation
 - **`GET /dev/pkce`** - Generate PKCE verifier/challenge pair
 
 ### Health

@@ -624,6 +624,51 @@ def admin_client_policy(client_id):
         return jsonify({'ok': True})
     finally:
         db.close()
+@app.route('/admin/users', methods=['GET','POST'])
+def admin_users():
+    _require_admin()
+    db = SessionLocal()
+    try:
+        if request.method == 'GET':
+            items = db.query(User).all()
+            return jsonify([
+                {'id': u.id, 'username': u.username, 'email': u.email}
+                for u in items
+            ])
+        data = request.json or {}
+        username = (data.get('username') or '').strip()
+        password = (data.get('password') or '').strip()
+        email = (data.get('email') or '').strip() or None
+        if not username or not password:
+            abort(400, 'username and password required')
+        if db.query(User).filter_by(username=username).first():
+            abort(409, 'username already exists')
+        u = User(username=username, email=email, password_hash=generate_password_hash(password))
+        db.add(u)
+        db.commit()
+        return jsonify({'id': u.id, 'username': u.username, 'email': u.email}), 201
+    finally:
+        db.close()
+
+@app.route('/admin/users/<int:user_id>', methods=['GET','DELETE'])
+def admin_user_detail_api(user_id):
+    _require_admin()
+    db = SessionLocal()
+    try:
+        u = db.get(User, user_id)
+        if not u:
+            abort(404)
+        if request.method == 'GET':
+            return jsonify({'id': u.id, 'username': u.username, 'email': u.email})
+        # DELETE: cleanup related records then remove user
+        db.query(OAuth2Token).filter_by(user_id=user_id).delete()
+        db.query(OAuth2AuthorizationCode).filter_by(user_id=user_id).delete()
+        db.query(RememberedConsent).filter_by(user_id=user_id).delete()
+        db.delete(u)
+        db.commit()
+        return jsonify({'ok': True})
+    finally:
+        db.close()
 
 # Legacy decorators removed; `init_app(app, query_client=..., save_token=...)` is used instead.
 def get_client(client_id):
@@ -2035,37 +2080,7 @@ def dev_seed():
     db.close()
     return "Seeded users and client.\nUsers: alice/alice, bob/bob\nClient: demo-web (PKCE public)\n(Use ?reset=1 to reset demo user passwords)"
 
-@app.route('/dev/create_client', methods=['POST'])
-def dev_create_client():
-    # Gate behind ENABLE_DEV_ENDPOINTS and require admin token when enabled
-    if os.environ.get('ENABLE_DEV_ENDPOINTS', '').lower() not in ('1','true','yes','on'):
-        abort(404)
-    _require_admin()
-    data = request.json or {}
-    client_id = data.get('client_id') or gen_salt(24)
-    public_client = data.get('public', True)
-    client_secret = None if public_client else base64.urlsafe_b64encode(os.urandom(32)).decode()
-    c = OAuth2Client(
-        client_id=client_id,
-        client_secret=client_secret,
-        client_name=data.get('name', client_id),
-        client_uri=data.get('client_uri'),
-        logo_uri=data.get('logo_uri'),
-        grant_types=data.get('grant_types', 'authorization_code refresh_token'),
-        response_types=data.get('response_types', 'code'),
-        scope=data.get('scope', 'openid profile email offline_access'),
-        redirect_uris=' '.join(data.get('redirect_uris', [])),
-        token_endpoint_auth_method='none' if public_client else 'client_secret_post',
-        require_consent=bool(data.get('require_consent', True))
-    )
-    db = SessionLocal()
-    db.add(c)
-    db.commit()
-    db.close()
-    return jsonify({
-        'client_id': client_id,
-        'client_secret': client_secret,
-    })
+ 
 
 # ----------------------
 # PKCE helper (dev)
