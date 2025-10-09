@@ -1,0 +1,154 @@
+name: Docker E2E test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BASE: http://127.0.0.1:8000
+      ADMIN_TOKEN: ci-admin-token
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install tools (jq)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (load to docker)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: local/oauth2:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run container
+        run: |
+          set -euo pipefail
+          docker run -d --name oauth2 \
+            -p 8000:8000 \
+            -e ENABLE_DEV_ENDPOINTS=true \
+            local/oauth2:ci
+
+      - name: Wait for health
+        run: |
+          set -euo pipefail
+          for i in {1..60}; do
+            if curl -fsS --retry 3 --retry-all-errors --connect-timeout 2 --max-time 5 "$BASE/health" >/dev/null; then
+              echo "Container is healthy"; exit 0; fi
+            sleep 1; done
+          echo "Container failed to become healthy"; docker logs oauth2 | tail -n 200; exit 1
+
+      - name: Initialize server (setup admin token)
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-all-errors -X POST "$BASE/setup" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode "admin_token=$ADMIN_TOKEN" -o /dev/null
+
+      - name: Seed demo users/client (dev)
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-all-errors "$BASE/dev/seed" -H "X-Admin-Token: $ADMIN_TOKEN" -o /dev/null
+
+      - name: Generate PKCE (dev helper)
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-all-errors "$BASE/dev/pkce" -H "X-Admin-Token: $ADMIN_TOKEN" | tee pkce.json
+          CODE_VERIFIER=$(jq -r '.code_verifier' pkce.json)
+          CODE_CHALLENGE=$(jq -r '.code_challenge' pkce.json)
+          if [ -z "$CODE_VERIFIER" ] || [ -z "$CODE_CHALLENGE" ]; then echo "Failed to parse PKCE"; exit 1; fi
+          echo "CODE_VERIFIER=$CODE_VERIFIER" >> $GITHUB_ENV
+          echo "CODE_CHALLENGE=$CODE_CHALLENGE" >> $GITHUB_ENV
+
+      - name: Build authorize URL
+        run: |
+          set -euo pipefail
+          ENC_REDIRECT=$(python -c "import urllib.parse; print(urllib.parse.quote_plus('http://localhost:3000/callback'))")
+          ENC_SCOPE=$(python -c "import urllib.parse; print(urllib.parse.quote_plus('openid profile email offline_access'))")
+          STATE=$(python -c "import secrets; print(secrets.token_urlsafe(16))")
+          AUTH_URL="$BASE/authorize?client_id=demo-web&response_type=code&redirect_uri=$ENC_REDIRECT&scope=$ENC_SCOPE&code_challenge_method=S256&code_challenge=$CODE_CHALLENGE&state=$STATE"
+          echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
+
+      - name: Login and authorize (get code)
+        run: |
+          set -euo pipefail
+          touch cookies.txt
+          curl -fsS --retry 3 --retry-all-errors -c cookies.txt -b cookies.txt "$BASE/login" -o /dev/null
+          NEXT_ENC=$(python -c "import urllib.parse, os; print(urllib.parse.quote_plus(os.environ['AUTH_URL']))")
+          curl -fsS --retry 3 --retry-all-errors -i -c cookies.txt -b cookies.txt \
+            -X POST "$BASE/login?next=$NEXT_ENC" -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'username=alice' --data-urlencode 'password=alice' -D login.out -o /dev/null
+          curl -fsS --retry 3 --retry-all-errors -i -c cookies.txt -b cookies.txt \
+            -X POST "$AUTH_URL" -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'confirm=yes' -D auth.out -o /dev/null || true
+          CODE=$(awk 'BEGIN{IGNORECASE=1} /^Location: /{print $2}' auth.out | tr -d '\r' | sed -E 's/.*[?&]code=([^&]+).*/\1/')
+          if [ -z "$CODE" ]; then echo "Failed to extract authorization code"; exit 1; fi
+          echo "CODE=$CODE" >> $GITHUB_ENV
+
+      - name: Exchange code for tokens and call userinfo
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-all-errors -X POST "$BASE/token" \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=authorization_code' \
+            --data-urlencode 'client_id=demo-web' \
+            --data-urlencode "code_verifier=$CODE_VERIFIER" \
+            --data-urlencode "code=$CODE" \
+            --data-urlencode 'redirect_uri=http://localhost:3000/callback' | tee token.json
+          ACCESS_TOKEN=$(jq -r '.access_token' token.json)
+          if [ -z "$ACCESS_TOKEN" ] || [ "$ACCESS_TOKEN" = "null" ]; then echo "Access token missing"; cat token.json; exit 1; fi
+          curl -fsS --retry 3 --retry-all-errors "$BASE/userinfo" -H "Authorization: Bearer $ACCESS_TOKEN" | tee userinfo.json
+          jq -e '.preferred_username == "alice"' userinfo.json >/dev/null || { echo "userinfo mismatch"; cat userinfo.json; exit 1; }
+
+      - name: Logs (on failure)
+        if: failure()
+        run: |
+          docker logs oauth2 | tail -n 200 || true
+          echo '--- token.json ---'; cat token.json || true
+          echo '--- userinfo.json ---'; cat userinfo.json || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-e2e
+          path: |
+            token.json
+            userinfo.json
+            auth.out
+            login.out
+          if-no-files-found: ignore
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker logs oauth2 > docker.log || true
+          docker rm -f oauth2 || true
+
+      - name: Upload docker log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-logs
+          path: docker.log
+          if-no-files-found: ignore
