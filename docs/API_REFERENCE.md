@@ -45,6 +45,16 @@ All Admin APIs require `X-Admin-Token` header.
 - **`GET /admin/users/<id>`** - Get a user
 - **`DELETE /admin/users/<id>`** - Delete user (also deletes tokens, codes, remembered consents)
 
+#### Clients (Admin API)
+- **`GET /admin/clients`** - List all OAuth2 clients
+- **`POST /admin/clients`** - Create a new client
+  - JSON body: `{ "client_id": "...", "client_name": "...", "redirect_uris": "...", "scope": "...", ... }`
+  - Responses: `201` with created client
+- **`GET /admin/clients/<client_id>`** - Get a specific client
+- **`PUT/PATCH /admin/clients/<client_id>`** - Update client configuration
+  - JSON body: partial or full client configuration including optional `policy` object
+- **`DELETE /admin/clients/<client_id>`** - Delete client (also deletes tokens, codes, policy, remembered consents)
+
 ### Dev Endpoints (Optional)
 Requires `ENABLE_DEV_ENDPOINTS=true` and `X-Admin-Token`.
 
@@ -245,6 +255,85 @@ curl -X POST "$BASE/admin/scopes" \
 **Delete scope:**
 ```bash
 curl -X DELETE "$BASE/admin/scopes/files.read" \
+     -H "X-Admin-Token: <ADMIN_TOKEN>"
+```
+
+### Client Management
+
+**List all clients:**
+```bash
+curl "$BASE/admin/clients" \
+     -H "X-Admin-Token: <ADMIN_TOKEN>"
+```
+
+Response example:
+```json
+[
+  {
+    "client_id": "demo-web",
+    "client_name": "Demo Web App",
+    "client_secret": null,
+    "redirect_uris": "http://localhost:3000/callback",
+    "scope": "openid profile email",
+    "grant_types": "authorization_code refresh_token",
+    "response_types": "code",
+    "token_endpoint_auth_method": "none",
+    "require_consent": true,
+    "policy": {
+      "allowed_scopes": "openid profile email offline_access",
+      "default_scopes": "openid profile email",
+      "post_logout_redirect_uris": "http://localhost:3000/",
+      "require_pkce": true,
+      "consent_policy": "once",
+      "access_token_lifetime": 3600,
+      "refresh_token_ttl_days": 30,
+      "token_format": "opaque"
+    }
+  }
+]
+```
+
+**Get a specific client:**
+```bash
+curl "$BASE/admin/clients/demo-web" \
+     -H "X-Admin-Token: <ADMIN_TOKEN>"
+```
+
+**Create a new client:**
+```bash
+curl -X POST "$BASE/admin/clients" \
+     -H "X-Admin-Token: <ADMIN_TOKEN>" \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "client_id": "my-app",
+       "client_name": "My Application",
+       "client_secret": null,
+       "redirect_uris": "http://localhost:8080/callback",
+       "scope": "openid profile email",
+       "grant_types": "authorization_code refresh_token",
+       "response_types": "code",
+       "token_endpoint_auth_method": "none",
+       "require_consent": true
+     }'
+```
+
+**Update a client:**
+```bash
+curl -X PATCH "$BASE/admin/clients/my-app" \
+     -H "X-Admin-Token: <ADMIN_TOKEN>" \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "redirect_uris": "http://localhost:8080/callback http://localhost:8081/callback",
+       "policy": {
+         "require_pkce": true,
+         "access_token_lifetime": 7200
+       }
+     }'
+```
+
+**Delete a client:**
+```bash
+curl -X DELETE "$BASE/admin/clients/my-app" \
      -H "X-Admin-Token: <ADMIN_TOKEN>"
 ```
 

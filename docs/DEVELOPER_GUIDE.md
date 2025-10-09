@@ -30,6 +30,75 @@ Use `Admin UI → Clients` to register your application.
   - Require PKCE: enable for public clients
   - Consent Policy: `always | once | skip`
 
+### Step-by-step: Register a Client in Admin UI (Beginner Friendly)
+
+1. Open Admin UI
+   - Go to `http://127.0.0.1:8000/admin/login`
+   - Enter the Admin Token created at `/setup`
+
+2. Create a client
+   - Click `Clients` → `Create Client`
+
+3. Fill fields
+   - Client ID: short id, e.g. `my-app`
+   - Client Name: e.g. `My App`
+   - Redirect URIs (space-separated), e.g.:
+     - `http://localhost:3000/callback`
+     - `http://127.0.0.1:3000/callback`
+   - Grants: `authorization_code refresh_token`
+   - Response Types: `code`
+   - Token Endpoint Auth Method:
+     - Public client: `none` (SPAs/native)
+     - Confidential: `client_secret_post` or `client_secret_basic` (backend)
+     - If confidential, copy the generated client secret after saving
+
+4. Client Policy (tab/panel)
+   - Allowed Scopes: include `openid profile email offline_access`
+   - Default Scopes: `openid profile email`
+   - Require PKCE: ON for public clients
+   - Consent Policy: `once` (recommended to remember consent)
+
+5. Save
+   - Click `Save`. Your client is ready.
+
+Tip: If testing in development, you can enable `ENABLE_DEV_ENDPOINTS=true` and use `/dev/pkce` to generate a PKCE pair.
+
+### Step-by-step: Test the Flow (Manual)
+
+Prereqs: a registered client and at least one user (create via `Admin UI → Users`, or enable `/dev/seed` in development).
+
+1. Generate PKCE (or use `/dev/pkce` in dev)
+   - Verifier and challenge must match (S256)
+
+2. Build the /authorize URL
+   - Example:
+     ```text
+     http://127.0.0.1:8000/authorize?client_id=my-app&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&scope=openid%20profile%20email%20offline_access&code_challenge_method=S256&code_challenge=<CHALLENGE>&state=<RANDOM>
+     ```
+
+3. Log in and consent
+   - Enter user credentials, approve consent
+   - You will be redirected to `redirect_uri?code=...&state=...`
+
+4. Exchange code for tokens
+   - Public client (PKCE):
+     ```bash
+     curl -X POST http://127.0.0.1:8000/token \
+          -H 'Content-Type: application/x-www-form-urlencoded' \
+          -d 'grant_type=authorization_code' \
+          -d 'client_id=my-app' \
+          -d 'code_verifier=<VERIFIER>' \
+          -d 'code=<CODE_FROM_CALLBACK>' \
+          -d 'redirect_uri=http://localhost:3000/callback'
+     ```
+   - Confidential client (`client_secret_post`): add `-d 'client_secret=...'`
+   - Confidential client (`client_secret_basic`): use `-u 'CLIENT_ID:CLIENT_SECRET'` instead of sending in body
+
+5. Call protected API
+   ```bash
+   curl http://127.0.0.1:8000/userinfo -H 'Authorization: Bearer <ACCESS_TOKEN>'
+   ```
+
 ## 2) Authorization Code Flow (Backend Web App)
 
 Recommended pattern for traditional web apps: exchange the authorization code on your backend.

@@ -670,6 +670,165 @@ def admin_user_detail_api(user_id):
     finally:
         db.close()
 
+@app.route('/admin/clients', methods=['GET','POST'])
+def admin_clients_api():
+    """Admin API endpoint to list all OAuth2 clients and their configuration."""
+    _require_admin()
+    db = SessionLocal()
+    try:
+        if request.method == 'GET':
+            # Query all clients and return their configuration
+            clients = db.query(OAuth2Client).all()
+            result = []
+            for c in clients:
+                # Get associated policy if exists
+                policy = db.query(ClientPolicy).filter_by(client_id=c.client_id).first()
+                client_data = {
+                    'client_id': c.client_id,
+                    'client_name': c.client_name,
+                    'client_secret': c.client_secret,
+                    'redirect_uris': c.redirect_uris,
+                    'scope': c.scope,
+                    'grant_types': c.grant_types,
+                    'response_types': c.response_types,
+                    'token_endpoint_auth_method': c.token_endpoint_auth_method,
+                    'require_consent': c.require_consent,
+                }
+                if policy:
+                    client_data['policy'] = {
+                        'allowed_scopes': policy.allowed_scopes,
+                        'default_scopes': policy.default_scopes,
+                        'post_logout_redirect_uris': policy.post_logout_redirect_uris,
+                        'consent_policy': policy.consent_policy,
+                        'require_pkce': policy.require_pkce,
+                        'token_format': policy.token_format,
+                        'access_token_lifetime': policy.access_token_lifetime,
+                        'refresh_token_ttl_days': policy.refresh_token_ttl_days,
+                    }
+                result.append(client_data)
+            return jsonify(result)
+
+        # POST: Create a new client
+        data = request.json or {}
+        client_id = (data.get('client_id') or '').strip()
+        if not client_id:
+            abort(400, 'client_id required')
+        if db.query(OAuth2Client).filter_by(client_id=client_id).first():
+            abort(409, 'client_id already exists')
+
+        c = OAuth2Client(
+            client_id=client_id,
+            client_secret=data.get('client_secret'),
+            client_name=data.get('client_name', ''),
+            redirect_uris=data.get('redirect_uris', ''),
+            scope=data.get('scope', 'openid profile email'),
+            grant_types=data.get('grant_types', 'authorization_code'),
+            response_types=data.get('response_types', 'code'),
+            token_endpoint_auth_method=data.get('token_endpoint_auth_method', 'client_secret_basic'),
+            require_consent=data.get('require_consent', True)
+        )
+        db.add(c)
+        db.commit()
+        return jsonify({'client_id': c.client_id, 'message': 'Client created'}), 201
+    finally:
+        db.close()
+
+@app.route('/admin/clients/<client_id>', methods=['GET','PUT','PATCH','DELETE'])
+def admin_client_detail_api(client_id):
+    """Admin API endpoint to get, update, or delete a specific OAuth2 client."""
+    _require_admin()
+    db = SessionLocal()
+    try:
+        c = db.query(OAuth2Client).filter_by(client_id=client_id).first()
+        if not c:
+            abort(404, 'Client not found')
+
+        if request.method == 'GET':
+            policy = db.query(ClientPolicy).filter_by(client_id=c.client_id).first()
+            client_data = {
+                'client_id': c.client_id,
+                'client_name': c.client_name,
+                'client_secret': c.client_secret,
+                'redirect_uris': c.redirect_uris,
+                'scope': c.scope,
+                'grant_types': c.grant_types,
+                'response_types': c.response_types,
+                'token_endpoint_auth_method': c.token_endpoint_auth_method,
+                'require_consent': c.require_consent,
+            }
+            if policy:
+                client_data['policy'] = {
+                    'allowed_scopes': policy.allowed_scopes,
+                    'default_scopes': policy.default_scopes,
+                    'post_logout_redirect_uris': policy.post_logout_redirect_uris,
+                    'consent_policy': policy.consent_policy,
+                    'require_pkce': policy.require_pkce,
+                    'token_format': policy.token_format,
+                    'access_token_lifetime': policy.access_token_lifetime,
+                    'refresh_token_ttl_days': policy.refresh_token_ttl_days,
+                }
+            return jsonify(client_data)
+
+        if request.method in ('PUT', 'PATCH'):
+            # Update client configuration
+            data = request.json or {}
+            if 'client_name' in data:
+                c.client_name = data['client_name']
+            if 'client_secret' in data:
+                c.client_secret = data['client_secret']
+            if 'redirect_uris' in data:
+                c.redirect_uris = data['redirect_uris']
+            if 'scope' in data:
+                c.scope = data['scope']
+            if 'grant_types' in data:
+                c.grant_types = data['grant_types']
+            if 'response_types' in data:
+                c.response_types = data['response_types']
+            if 'token_endpoint_auth_method' in data:
+                c.token_endpoint_auth_method = data['token_endpoint_auth_method']
+            if 'require_consent' in data:
+                c.require_consent = data['require_consent']
+
+            # Update policy if provided
+            if 'policy' in data:
+                policy = db.query(ClientPolicy).filter_by(client_id=client_id).first()
+                if not policy:
+                    policy = ClientPolicy(client_id=client_id)
+                    db.add(policy)
+
+                policy_data = data['policy']
+                if 'allowed_scopes' in policy_data:
+                    policy.allowed_scopes = policy_data['allowed_scopes']
+                if 'default_scopes' in policy_data:
+                    policy.default_scopes = policy_data['default_scopes']
+                if 'post_logout_redirect_uris' in policy_data:
+                    policy.post_logout_redirect_uris = policy_data['post_logout_redirect_uris']
+                if 'consent_policy' in policy_data:
+                    policy.consent_policy = policy_data['consent_policy']
+                if 'require_pkce' in policy_data:
+                    policy.require_pkce = policy_data['require_pkce']
+                if 'token_format' in policy_data:
+                    policy.token_format = policy_data['token_format']
+                if 'access_token_lifetime' in policy_data:
+                    policy.access_token_lifetime = policy_data['access_token_lifetime']
+                if 'refresh_token_ttl_days' in policy_data:
+                    policy.refresh_token_ttl_days = policy_data['refresh_token_ttl_days']
+
+            db.commit()
+            return jsonify({'client_id': c.client_id, 'message': 'Client updated'})
+
+        if request.method == 'DELETE':
+            # Delete client and related records
+            db.query(OAuth2AuthorizationCode).filter_by(client_id=client_id).delete()
+            db.query(OAuth2Token).filter_by(client_id=client_id).delete()
+            db.query(ClientPolicy).filter_by(client_id=client_id).delete()
+            db.query(RememberedConsent).filter_by(client_id=client_id).delete()
+            db.delete(c)
+            db.commit()
+            return jsonify({'ok': True, 'message': 'Client deleted'})
+    finally:
+        db.close()
+
 # Legacy decorators removed; `init_app(app, query_client=..., save_token=...)` is used instead.
 def get_client(client_id):
     return query_client(client_id)
@@ -2107,21 +2266,46 @@ if __name__ == '__main__':
     port = 8000
     base = f"http://{host}:{port}"
     print(f"""
-Quick test steps:
-  1) Open {base}/dev/seed to create demo users/client
-  2) GET {base}/dev/pkce to obtain verifier+challenge
-  3) Open /authorize URL in a browser, for example:
-     {base}/authorize?client_id=demo-web&response_type=code&scope=openid%20profile%20email&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&code_challenge_method=S256&code_challenge=<CHALLENGE>
-  4) Login as alice/alice, approve consent, copy the ?code=...
-  5) Exchange code with curl:
-     curl -X POST {base}/token \
-          -H 'Content-Type: application/x-www-form-urlencoded' \
-          -d 'grant_type=authorization_code' \
-          -d 'client_id=demo-web' \
-          -d 'code_verifier=<VERIFIER>' \
-          -d 'code=<CODE_FROM_CALLBACK>' \
-          -d 'redirect_uri=http://localhost:3000/callback'
-  6) Call a protected API:
-     curl {base}/userinfo -H 'Authorization: Bearer <access_token>'
+Quick Start
+===========
+
+1) Initialize server
+   - Open {base}/setup
+   - Copy the Admin Token (shown once)
+
+2) (Optional) Seed demo data
+   - Requires: ENABLE_DEV_ENDPOINTS=true and X-Admin-Token header
+   - Example:
+     curl "{base}/dev/seed" \
+          -H 'X-Admin-Token: <ADMIN_TOKEN>'
+
+3) Generate PKCE (choose one)
+   - Dev endpoint (requires dev helpers):
+     curl "{base}/dev/pkce" \
+          -H 'X-Admin-Token: <ADMIN_TOKEN>'
+
+   - Or generate locally (Python):
+     import os, base64, hashlib\n\n     verifier = base64.urlsafe_b64encode(os.urandom(40)).decode().rstrip('=')\n     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')
+
+4) Authorize in browser
+   - If you ran the seed, a demo client exists: client_id=demo-web, redirect_uri=http://localhost:3000/callback
+   - Open:
+     {base}/authorize?client_id=demo-web&response_type=code&scope=openid%20profile%20email%20offline_access&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback&code_challenge_method=S256&code_challenge=<CHALLENGE>&state=<STATE>
+
+5) Login and consent
+   - Demo users (only if seeded): alice/alice, bob/bob
+
+6) Exchange code for tokens
+   curl -X POST {base}/token \
+        -H 'Content-Type: application/x-www-form-urlencoded' \
+        -d 'grant_type=authorization_code' \
+        -d 'client_id=demo-web' \
+        -d 'code_verifier=<VERIFIER>' \
+        -d 'code=<CODE_FROM_CALLBACK>' \
+        -d 'redirect_uri=http://localhost:3000/callback'
+
+7) Call a protected API
+   curl {base}/userinfo \
+        -H 'Authorization: Bearer <ACCESS_TOKEN>'
 """)
     app.run(debug=True, host=host, port=port)

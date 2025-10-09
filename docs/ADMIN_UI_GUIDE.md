@@ -43,6 +43,50 @@ Create, update, and delete local users used to authenticate on the Authorization
 
 Create and manage OAuth2/OIDC clients that integrate with this Authorization Server.
 
+### Step-by-step: Create a Client (Beginner Friendly)
+
+1. Open the Admin UI
+   - Visit `http://127.0.0.1:8000/admin/login`
+   - Enter your Admin Token (created during `/setup`)
+
+2. Go to Clients
+   - Click `Clients` on the dashboard (`/admin/ui`)
+   - Click `Create Client` (or `New`)
+
+3. Fill in basic client info
+   - Client ID: short, URL-safe name (e.g., `my-app`)
+   - Client Name: shown on consent screens (e.g., `My App`)
+   - Redirect URIs: exact callback URLs (space-separated)
+     - Examples:
+       - `http://localhost:3000/callback`
+       - `http://127.0.0.1:3000/callback`
+     - Must match exactly what your app sends in `redirect_uri`
+
+4. Choose client type and auth method
+   - Public client (SPA/mobile): set Token Endpoint Auth Method to `none`
+   - Confidential client (backend): choose `client_secret_post` or `client_secret_basic`
+   - If confidential, copy the generated client secret after saving
+
+5. Select grants/response types
+   - Grant Types: usually `authorization_code refresh_token`
+   - Response Types: `code`
+
+6. Set requested scopes
+   - Scope: `openid profile email offline_access`
+   - You can add custom scopes later in `Scopes`
+
+7. Configure Client Policy (important)
+   - Allowed Scopes: must include all scopes your app may request
+   - Default Scopes: auto-applied if your app omits `scope`
+   - Require PKCE: turn ON for public clients (recommended)
+   - Consent Policy: `once` (remember user consent) is a good default
+   - Token Lifetimes: keep defaults for first setup
+
+8. Save and test
+   - Save the client
+   - If dev helpers are enabled (`ENABLE_DEV_ENDPOINTS=true`), you can generate PKCE at `/dev/pkce` for quick testing
+   - Build the `/authorize` URL in your app and try the full flow
+
 ### Client Fields
 
 #### Client ID
